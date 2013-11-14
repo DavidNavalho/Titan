@@ -1,0 +1,133 @@
+package sys.net.impl;
+
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+
+import sys.net.api.Endpoint;
+import sys.net.api.MessageHandler;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+abstract public class AbstractEndpoint implements Endpoint {
+
+	protected long gid;
+	protected long locator;
+	protected InetSocketAddress sockAddress;
+
+	protected MessageHandler handler;
+
+	protected AbstractEndpoint() {
+		this.handler = new DefaultMessageHandler();
+	}
+
+	protected AbstractEndpoint(MessageHandler handler) {
+		this.handler = handler;
+	}
+
+	protected AbstractEndpoint(InetSocketAddress sockAddress, long gid) {
+		this.gid = gid;
+		this.sockAddress = sockAddress;
+		this.locator = encodeLocator( sockAddress ) ;
+	}
+
+	protected AbstractEndpoint(long locator, long gid) {
+		this.gid = gid;
+		this.locator = locator;
+		this.sockAddress = decodeLocator(locator);
+	}
+
+	public final boolean isOutgoing() {
+		return (locator & 0xFFFF) == 0;
+	}
+
+	public final boolean isIncoming() {
+		return (locator & 0xFFFF) > 0;
+	}
+
+	@Override
+	public int hashCode() {
+		return (int) (locator >>> 32 ^ locator & 0xFFFFFFFFL);
+	}
+
+	final public boolean equals(AbstractEndpoint other) {
+		return locator == other.locator && gid == other.gid;
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		return other != null && equals((AbstractEndpoint) other);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T extends Endpoint> T setHandler(MessageHandler handler) {
+		this.handler = handler;
+		return (T) this;
+	}
+
+	static protected void copyLocatorData(AbstractEndpoint src, AbstractEndpoint dst) {
+		dst.gid = src.gid;
+		dst.locator = src.locator;
+		dst.sockAddress = src.sockAddress;
+	}
+
+	protected void setSocketAddress(int port) {
+		try {
+			this.sockAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(), port);
+			this.locator = encodeLocator(sockAddress);
+
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public InetSocketAddress sockAddress() {
+		return sockAddress;
+	}
+
+	@Override
+	public MessageHandler getHandler() {
+		return handler;
+	}
+
+	@Override
+	public String toString() {
+		if( sockAddress != null )
+			return sockAddress.getAddress().getHostAddress() + ":" + sockAddress.getPort() + (gid == 0L ? "" : "/" + Long.toString(gid, 32));
+		else
+			return "?????????????????????";
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> T gid() {
+		return (T) new Long(gid);
+	}
+
+	protected static long encodeLocator(InetSocketAddress addr) {
+		return ((long) ByteBuffer.wrap(addr.getAddress().getAddress()).getInt() << Integer.SIZE) | addr.getPort();
+	}
+
+	protected static InetSocketAddress decodeLocator(long locator) {
+		try {
+			ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE).putInt((int) (locator >> Integer.SIZE));
+			return new InetSocketAddress(InetAddress.getByAddress(buf.array()), (int) (locator & 0x0FFFF));
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	final public void write(Kryo kryo, Output output) {
+		output.writeLong( this.locator);
+		output.writeLong( this.gid );
+	}
+
+	final public void read(Kryo kryo, Input input) {
+		this.locator = input.readLong();
+		this.gid = input.readLong();
+	}
+}
