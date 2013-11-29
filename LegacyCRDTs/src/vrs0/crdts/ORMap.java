@@ -39,6 +39,9 @@ public class ORMap<K extends Serializable, V extends Serializable> implements
         tomb = new HashSet<EventClock>();
     }
 
+    public int size(){
+        return this.elems.size();
+    }
     /**
      * Returns true if e is in the set
      * 

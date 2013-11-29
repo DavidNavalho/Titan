@@ -26,7 +26,7 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 		e2t = new HashMap<V, Set<Timestamp>>();
 		t2v = new HashMap<Timestamp, V>();
 		tomb = new HashSet<Timestamp>();
-	}
+    }
 
 	@Override
 	public boolean isEmpty() {

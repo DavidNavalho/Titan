@@ -23,12 +23,13 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 			data.put(i.getKey(), i.getValue().clone());
 		}
 	}
-
+    //TODO: altered below, needed syncronized method
+    private static Object obj = new Object();
 	@Override
 	public TS recordNext(String siteId) {
 		TsSet s = getSet(siteId);
 		TS t = new TS(siteId, ++maxCounter, s.maxCounter());
-		s.add(t);
+		synchronized(obj){s.add(t);}
 		return t;
 	}
 
