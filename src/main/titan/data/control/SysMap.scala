@@ -7,10 +7,11 @@ import main.titan.data.messaging.Messaging._
 import main.titan.data.messaging.TitanData
 import main.titan.computation.Trigger
 import main.hacks.data.ccrdts.{MapCCRDT, ORSetCCRDT}
-import main.titan.data.messaging.Messaging.DataMessage
-import main.titan.data.messaging.Messaging.ManualCRDTSyncMessage
-import main.titan.data.messaging.Messaging.CRDTMessage
-import main.titan.data.messaging.Messaging.CRDTSyncMessage
+import main.titan.data.messaging.Messaging.DataTitanMessage
+import main.titan.data.messaging.Messaging.ManualCRDTSyncTitanMessage
+import main.titan.data.messaging.Messaging.CRDTTitanMessage
+import main.titan.data.messaging.Messaging.CRDTSyncTitanMessage
+import main.titan.comm.CCRDTRef
 
 
 /**
@@ -31,7 +32,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize:
 	var partitions: HashMap[Long, ComputationalCRDT] = new HashMap[Long, ComputationalCRDT]();
 	val reference: String = ccrdt.reference;
 	val skeleton: CCRDTSkeleton = ccrdt.skeleton;
-	val titan: ActorRef = titanRef;
+	val titan: CCRDTRef = new CCRDTRef(titanRef);
 	val myFather: Int = father;
 	val myFathersMaxSize: Int = maxSize;
 
@@ -64,7 +65,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize:
 			val key: Long = this.skeleton.getPartitionKey(i)
 			val ccrdt: ComputationalCRDT = this.partitions.get(key).get
 			this.partitions.put(key,ccrdt.hollowReplica);
-			titan ! new CRDTSyncMessage(ccrdt, key)
+			titan.message(new CRDTSyncTitanMessage(ccrdt, key))
 //			println("Sent: "+ccrdt.size()+"| Remained: "+this.partitions.get(key).get.size())
 			//send the ccrdt to titan, so it can be synced - let's make it local for now
 		}
@@ -77,7 +78,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize:
 			val ccrdt: ComputationalCRDT = this.partitions.get(key).get
 //			println(ccrdt.size())
 			this.partitions.put(key,ccrdt.hollowReplica);
-			titan ! new ManualCRDTSyncMessage(ccrdt, key, this.myFather, this.myFathersMaxSize)
+			titan.message(new ManualCRDTSyncTitanMessage(ccrdt, key, this.myFather, this.myFathersMaxSize))
 //						println("Sent: "+ccrdt.size()+"| Remained: "+this.partitions.get(key).get.size())
 			//send the ccrdt to titan, so it can be synced - let's make it local for now
 		}
@@ -108,10 +109,10 @@ class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize:
 			println("Time: "+(newTime-timing)/1000)
 			timing = newTime;*/
 		}
-		case DataMessage(data: TitanData) => {
+		case DataTitanMessage(data: TitanData) => {
 			this.addData(data);
 		}
-		case CRDTMessage(data: ListBuffer[TitanData]) => {
+		case CRDTTitanMessage(data: ListBuffer[TitanData]) => {
 			this.merge(data);
 		}
 		case "sync" => {

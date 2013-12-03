@@ -12,17 +12,17 @@ import main.titan.data.messaging.Messaging._
 import main.titan.computation.{ManualTrigger, Trigger}
 import main.titan.data.messaging.TitanData
 import main.titan.data.messaging.Messaging.EOE
-import main.titan.data.messaging.Messaging.CRDTCreationMessage
-import main.titan.data.messaging.Messaging.TriggerMessage
-import main.titan.data.messaging.Messaging.TargetedDataMessage
+import main.titan.data.messaging.Messaging.CRDTCreationTitanMessage
+import main.titan.data.messaging.Messaging.TriggerTitanMessage
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
 import scala.concurrent.Await
 import akka.util.Timeout
 import scala.concurrent.duration._
 import main.titan.data.messaging.Messaging.EOE
-import main.titan.data.messaging.Messaging.CRDTCreationMessage
-import main.titan.data.messaging.Messaging.TriggerMessage
-import main.titan.data.messaging.Messaging.TargetedDataMessageWithReply
-import main.titan.data.messaging.Messaging.TargetedDataMessage
+import main.titan.data.messaging.Messaging.CRDTCreationTitanMessage
+import main.titan.data.messaging.Messaging.TriggerTitanMessage
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessageWithReply
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
 import main.hacks.data.triggers.{CheckTrigger, LinksRanksTrigger, ReaderLinksTrigger}
 
 /**
@@ -61,7 +61,7 @@ object Tests {
 			val words: Array[String] = line.split(' ');
 			if(words.length!=2)
 				println("Read something weird...")
-			titan ! new TargetedDataMessage(target, new TitanData(words(0),words(1)))
+			titan ! new TargetedDataTitanMessage(target, new TitanData(words(0),words(1)))
 			/*words.foreach{ w =>
 				titan ! new TargetedDataMessage(target, new TitanData(w, w));
 			}*/
@@ -77,7 +77,7 @@ object Tests {
 			if(words.length!=2)
 				println("Read something weird...")
 			implicit val timeout = Timeout(1 minutes)
-			/*val future = */titan ! new TargetedDataMessageWithReply(target, new TitanData(words(0),words(1)));
+			/*val future = */titan ! new TargetedDataTitanMessageWithReply(target, new TitanData(words(0),words(1)));
 //			val result: String = Await.result(future.mapTo[String], 1 minute)
 //			println(result)
 			/*words.foreach{ w =>
@@ -100,14 +100,14 @@ object Tests {
 //		val titan: Titan = new Titan();
 		//create/add a new CCRDT
 		val reader: ComputationalCRDT = new ORSetCCRDT("reader",1);
-		titan ! new CRDTCreationMessage(reader);
+		titan ! new CRDTCreationTitanMessage(reader);
 		//create/add the LinksSet
 		val links: Links = new Links("links",4);
-		titan ! CRDTCreationMessage(links)
+		titan ! CRDTCreationTitanMessage(links)
 		//create Trigger:
 		//basically, I need: source; compute Function (that receives sources Tuples, and transforms); target
 		val firstTrigger: Trigger = new Trigger("reader", "all", "links",100);
-		titan ! TriggerMessage(firstTrigger, links.hollowReplica)
+		titan ! TriggerTitanMessage(firstTrigger, links.hollowReplica)
 
 		//only start adding data after everything is created
 		//populate reader
@@ -119,9 +119,9 @@ object Tests {
 	def it_init(titan: ActorRef){
 		//initial rankings -> a normal computation
 		val ranks: ScratchpadRanks = new ScratchpadRanks("ranks",2,2)
-		titan ! CRDTCreationMessage(ranks)
+		titan ! CRDTCreationTitanMessage(ranks)
 		val secondTrigger: LinksRanksTrigger = new LinksRanksTrigger("links", "all", "ranks")
-		titan ! TriggerMessage(secondTrigger, ranks.hollowReplica)
+		titan ! TriggerTitanMessage(secondTrigger, ranks.hollowReplica)
 	}
 
 	def condition: Boolean = {
@@ -134,7 +134,7 @@ object Tests {
 		//since I'm using ranks to compute new ranks, I want to get 'hollow' (full) replicas onto the scratchpad
 		//and run the computation/Trigger there
 		val iterationTrigger: CheckTrigger = new CheckTrigger("ranks","links","key-join","ranks",10)
-		titan ! TriggerMessage(iterationTrigger, links.hollowReplica)     //null hollow replica?
+		titan ! TriggerTitanMessage(iterationTrigger, links.hollowReplica)     //null hollow replica?
 	}
 
 	def it_check(titan: ActorRef){
@@ -154,13 +154,13 @@ object Tests {
 		val actorSystem: ActorSystem = ActorSystem("Titan")
 		val titan: ActorRef = actorSystem.actorOf(Props[Titan](new Titan()))
 		val reader: ComputationalCRDT = new ORSetCCRDT("reader",1);
-		titan ! new CRDTCreationMessage(reader);
+		titan ! new CRDTCreationTitanMessage(reader);
 		//setup the rest of the system nodes
 		val links: Links = new Links("links",2);
-		titan ! CRDTCreationMessage(links)
+		titan ! CRDTCreationTitanMessage(links)
 		//setup the triggers
 		val firstTrigger: ReaderLinksTrigger = new ReaderLinksTrigger("reader", "all", "links");
-		titan ! TriggerMessage(firstTrigger, links.hollowReplica)
+		titan ! TriggerTitanMessage(firstTrigger, links.hollowReplica)
 		//send signal to start computation?
 		//a partition needs knowledge about how many partitions it should get data from.
 		iteration(titan, links)

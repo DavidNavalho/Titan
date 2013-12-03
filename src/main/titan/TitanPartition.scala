@@ -8,10 +8,10 @@ import main.titan.data.control.{SysMap}
 import main.titan.data.messaging.Messaging._
 import main.titan.data.messaging.TitanData
 import main.titan.computation.Trigger
-import main.titan.data.messaging.Messaging.DataMessage
-import main.titan.data.messaging.Messaging.CRDTMessage
-import main.titan.data.messaging.Messaging.CRDTSyncMessage
-import main.titan.data.messaging.Messaging.TriggerMessage
+import main.titan.data.messaging.Messaging.DataTitanMessage
+import main.titan.data.messaging.Messaging.CRDTTitanMessage
+import main.titan.data.messaging.Messaging.CRDTSyncTitanMessage
+import main.titan.data.messaging.Messaging.TriggerTitanMessage
 import main.hacks.data.triggers.CheckTrigger
 import main.hacks.data.ccrdts.{Links, ScratchpadRanks}
 
@@ -52,7 +52,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 //			println(this.ccrdt.reference+"## ASBJKBDSKKJADS")     //TODO ???
 		}else
 			this.localReplicas.foreach{actor: ActorRef =>
-				actor ! new CRDTMessage(returned)
+				actor ! new CRDTTitanMessage(returned)
 	//			actor ! "manualSync"//TODO: removed sync here
 			}
 	}
@@ -104,9 +104,9 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 			if(result){
 				println("Iteration verification suggesting to stop on partition: "+this.partitionPlace+", iteration: "+this.lastIteration)
 				//I should now sync this to the first, which is the one that actually decides what to do
-				titan ! new IterationCheckSyncMessage(this.ccrdt.reference, this.it_Counter, true)
+				titan ! new IterationCheckSyncTitanMessage(this.ccrdt.reference, this.it_Counter, true)
 			}else
-				titan ! new IterationCheckSyncMessage(this.ccrdt.reference, this.it_Counter, false)
+				titan ! new IterationCheckSyncTitanMessage(this.ccrdt.reference, this.it_Counter, false)
 			return
 		}
 		//TODO: 3. the results from the compute function should be gathered onto a local true/false gatherer
@@ -140,7 +140,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 	//Receive [internal] messages from Titan Node
  	def receive = {
 		//TODO: multiple SysMap constructors?
-		case TriggerMessage(trigger: Trigger, ccrdt: ComputationalCRDT) => {
+		case TriggerTitanMessage(trigger: Trigger, ccrdt: ComputationalCRDT) => {
 				println("["+this.partition.reference+"] New Trigger: "+trigger.toString())
 
 			//if it's an iteration Trigger, the trigger actually runs in the partition, and not on the sysmaps (they remain empty)
@@ -156,7 +156,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 //			if(trigger.triggerType.equalsIgnoreCase("activated"))
 //				this.merge(null)
 		}
-		case DataMessage(titanData: TitanData) => {
+		case DataTitanMessage(titanData: TitanData) => {
 			val data: TitanData = this.partition.addData(titanData)
 //			println(this.partition.size())
 //			println("blah: "+localReplicas.size)
@@ -166,15 +166,15 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 
 			}else
 				this.localReplicas.foreach{actor: ActorRef =>
-					actor ! new DataMessage(data)
+					actor ! new DataTitanMessage(data)
 				}
 		}
 		//TODO: activate triggers
 		/*case CRDTDataMessage(ccrdt: ComputationalCRDT) => {
 			println("Received CCRDT for merge procedure!")
 		}*/
-		case CRDTSyncMessage(ccrdt: ComputationalCRDT, key: Long) => this.merge(ccrdt)//TODO: check: I should be able to ignore the key here - double-check??
-		case ManualCRDTSyncMessage(ccrdt: ComputationalCRDT, key: Long, myPartition: Int, myPartitioningSize: Int) => {
+		case CRDTSyncTitanMessage(ccrdt: ComputationalCRDT, key: Long) => this.merge(ccrdt)//TODO: check: I should be able to ignore the key here - double-check??
+		case ManualCRDTSyncTitanMessage(ccrdt: ComputationalCRDT, key: Long, myPartition: Int, myPartitioningSize: Int) => {
 			this.merge(ccrdt)
 			if(this.hack==null)
 				this.hack = new Array[Int](myPartitioningSize)
@@ -231,7 +231,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 				this.computeIteration
 			}
 		}
-		case IterationCheckSyncMessage(target: String, iterationStep: Int, stop: Boolean) => {
+		case IterationCheckSyncTitanMessage(target: String, iterationStep: Int, stop: Boolean) => {
 			if(iterationStep>check_iteration){
 				this.check_iteration = iterationStep
 				this.check_results = 1

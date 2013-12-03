@@ -6,10 +6,10 @@ import scala.collection.mutable.{ListBuffer, HashMap}
 import main.titan.data.messaging.Messaging._
 import main.titan.data.messaging.TitanData
 import main.titan.computation.Trigger
-import main.titan.data.messaging.Messaging.DataMessage
-import main.titan.data.messaging.Messaging.TriggerMessage
-import main.titan.data.messaging.Messaging.CRDTCreationMessage
-import main.titan.data.messaging.Messaging.TargetedDataMessage
+import main.titan.data.messaging.Messaging.DataTitanMessage
+import main.titan.data.messaging.Messaging.TriggerTitanMessage
+import main.titan.data.messaging.Messaging.CRDTCreationTitanMessage
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
 
 /**
  * Created with IntelliJ IDEA.
@@ -54,12 +54,12 @@ class Titan extends Actor{
 		val skel: CCRDTSkeleton = this.namedPartitions.get(target).get;
 		val key: Long = skel.hashingFunction(data.key);
 		val actor: ActorRef = this.partitions.get(key).get;
-		actor ! new DataMessage(data);
+		actor ! new DataTitanMessage(data);
 	}
 
 	//TODO: I should instead reuse the message Object, instead of creating new ones...
 	def mergeCRDT(ccrdt: ComputationalCRDT, partitionKey: Long){
-		this.partitions.get(partitionKey).get ! new CRDTSyncMessage(ccrdt, partitionKey);
+		this.partitions.get(partitionKey).get ! new CRDTSyncTitanMessage(ccrdt, partitionKey);
 		/*val reference: String = ccrdt.reference;
 		val skeleton: CCRDTSkeleton = ccrdt.skeleton;
 		for(i <- 1 to skeleton.partitioningSize){
@@ -68,7 +68,7 @@ class Titan extends Actor{
 	}
 
 	def manuallymergeCCRDT(ccrdt: ComputationalCRDT, partitionKey: Long, partitionPlace: Int, partitioningSize: Int){
-		this.partitions.get(partitionKey).get ! new ManualCRDTSyncMessage(ccrdt, partitionKey, partitionPlace, partitioningSize)
+		this.partitions.get(partitionKey).get ! new ManualCRDTSyncTitanMessage(ccrdt, partitionKey, partitionPlace, partitioningSize)
 	}
 
 	//TODO: problem: can create a trigger before the partitions have all been instantiated -> that's a problem! (not now)
@@ -77,22 +77,22 @@ class Titan extends Actor{
 		val source: String = trigger.source;
 		val sourceSkeleton: CCRDTSkeleton = this.namedPartitions.get(source).get;
 		for(i <- 1 to sourceSkeleton.partitioningSize){
-			this.partitions.get(sourceSkeleton.getPartitionKey(i)).get ! new TriggerMessage(trigger, targetHollowReplica)
+			this.partitions.get(sourceSkeleton.getPartitionKey(i)).get ! new TriggerTitanMessage(trigger, targetHollowReplica)
 		}
 	}
 
 	def receive = {
-		case TriggerMessage(trigger:Trigger, ccrdt: ComputationalCRDT) =>
+		case TriggerTitanMessage(trigger:Trigger, ccrdt: ComputationalCRDT) =>
 			this.addTrigger(trigger, ccrdt)
-		case TargetedDataMessage(target: String, titanData: TitanData) =>
+		case TargetedDataTitanMessage(target: String, titanData: TitanData) =>
 			this.addData(target, titanData)
-		case TargetedDataMessageWithReply(target: String, titanData: TitanData) =>
+		case TargetedDataTitanMessageWithReply(target: String, titanData: TitanData) =>
 			this.addData(target, titanData)
-		case CRDTCreationMessage(ccrdt: ComputationalCRDT) =>
+		case CRDTCreationTitanMessage(ccrdt: ComputationalCRDT) =>
 			this.addCCRDT(ccrdt)
-		case CRDTSyncMessage(ccrdt: ComputationalCRDT, partitionKey: Long) =>
+		case CRDTSyncTitanMessage(ccrdt: ComputationalCRDT, partitionKey: Long) =>
 			this.mergeCRDT(ccrdt, partitionKey)
-		case ManualCRDTSyncMessage(ccrdt: ComputationalCRDT, partitionKey: Long, myPartition: Int, myPartitioningSize: Int) =>
+		case ManualCRDTSyncTitanMessage(ccrdt: ComputationalCRDT, partitionKey: Long, myPartition: Int, myPartitioningSize: Int) =>
 			this.manuallymergeCCRDT(ccrdt, partitionKey, myPartition, myPartitioningSize)
 		case EpochSync(str: String, epoch: Int) => {
 			val skel: CCRDTSkeleton = this.namedPartitions.get(str).get;
@@ -116,10 +116,10 @@ class Titan extends Actor{
 				partitions.get(partition).get ! new CCRDTDataRequestReply(data, target, iteration, expectedReplies)
 			}
 		}
-		case IterationCheckSyncMessage(target: String, iterationStep: Int, stop: Boolean) => {
+		case IterationCheckSyncTitanMessage(target: String, iterationStep: Int, stop: Boolean) => {
 			val skel: CCRDTSkeleton = this.namedPartitions.get(target).get;
 			val partition: Long = skel.getPartitionKey(1)
-			partitions.get(partition).get ! new IterationCheckSyncMessage(target, iterationStep, stop)
+			partitions.get(partition).get ! new IterationCheckSyncTitanMessage(target, iterationStep, stop)
 		}
 		case _ => println("Titan: unkown message received")
 	}
