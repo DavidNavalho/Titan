@@ -289,7 +289,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 				if(this.partitionsSize == this.check_confirmed){
 					println("Iteration stopped @ step: "+iterationStep+", "+System.nanoTime())
 //					println(this.ccrdt.asInstanceOf[ScratchpadRanks].getLast.toString)
-				}else{
+				}else{ //things
 					this.messagePartitions("links", true)//start the next iteration!
 //					this.computeIteration
 				}
