@@ -12,7 +12,7 @@ import main.titan.data.messaging.TitanData
  * Time: 10:50
  * To change this template use File | Settings | File Templates.
  */
-trait ComputationalCRDT{
+trait ComputationalCRDT extends Serializable{
 	//(nodeName: String, partitions: Int)
 	val reference: String //= nodeName;
   val partitioningSize: Int //= partitions;

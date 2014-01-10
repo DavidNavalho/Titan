@@ -7,7 +7,7 @@ package main.titan.data.messaging
  * Time: 09:31
  * To change this template use File | Settings | File Templates.
  */
-class TitanData(dataKey: String, dataRef: AnyRef) {
+class TitanData(dataKey: String, dataRef: AnyRef) extends Serializable{
 	val key: String = dataKey;
 	val data: AnyRef = dataRef;
 }

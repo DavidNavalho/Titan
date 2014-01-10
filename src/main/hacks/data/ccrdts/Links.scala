@@ -20,6 +20,22 @@ class Links(nodeName: String, partitions: Int) extends MapCCRDT(nodeName, partit
 	//TODO: the ORSet should also allow for NO repeats
 	val myorMap: ORMap[String, ORSet[String]] = new ORMap[String, ORSet[String]]();
 
+	def this() = this("",0)
+
+	override def toString: String = {
+		var result: String = ""
+		val it = this.myorMap.getValue.entrySet().iterator()
+		while(it.hasNext){
+			val next = it.next()
+			val linked = next.getValue.iterator().next().iterator()
+			var linked_links: String = "{"
+			while(linked.hasNext)
+				linked_links+=linked.next()+" "
+			result+=next.getKey+": "+linked_links+"}\r\n"
+		}
+		return result
+	}
+
 	override def size(): Int = {
 		return this.myorMap.size()
 	}
@@ -41,6 +57,10 @@ class Links(nodeName: String, partitions: Int) extends MapCCRDT(nodeName, partit
 //		println(key+"|"+data)
 		if(key.equals(data))
 			return null//do not add repeats
+		if(!this.myorMap.lookup(data)){
+			val set: ORSet[String] = new ORSet[String]()
+			this.myorMap.insert(data, set)//TODO:return null???
+		}
 		if(this.myorMap.lookup(key)){
 			val set: ORSet[String] = this.myorMap.get(key).iterator().next()
 			set.add(data,runtime.getCausalityClock().recordNext(reference))
@@ -77,6 +97,7 @@ class Links(nodeName: String, partitions: Int) extends MapCCRDT(nodeName, partit
 		}
 	}
 
+	//????
 	private def ontoList():ListBuffer[TitanData] = {
 		val lb: ListBuffer[TitanData] = new ListBuffer[TitanData]()
 		val it = this.myorMap.getValue.entrySet().iterator()

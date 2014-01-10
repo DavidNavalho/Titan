@@ -14,6 +14,7 @@ import main.titan.data.messaging.Messaging.CRDTSyncTitanMessage
 import main.titan.data.messaging.Messaging.TriggerTitanMessage
 import main.hacks.data.triggers.CheckTrigger
 import main.hacks.data.ccrdts.{Links, ScratchpadRanks}
+import com.typesafe.config.ConfigFactory
 
 
 /**
@@ -31,7 +32,8 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 
 	val partition: ComputationalCRDT = ccrdt;
 	//TODO: shouldn't really be random...
-	val partitionActorSystem: ActorSystem = ActorSystem("P-"+this.partition.skeleton.reference+Random.nextInt());
+	val cf = ConfigFactory.load("app")
+	val partitionActorSystem: ActorSystem = ActorSystem("P-"+this.partition.skeleton.reference+Random.nextInt(),cf);
 	val localReplicas: ListBuffer[ActorRef] =new ListBuffer[ActorRef]();
 	println("New CCRDT Partition created: "+ccrdt.reference)
 	val titan: ActorRef = titanRef;
@@ -59,6 +61,33 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 
 	var lastIteration: Int = 0
 
+	var computeTime = 0.0
+
+	def messagePartitions(target: String, repeat: Boolean){
+		this.computeTime = System.nanoTime()
+		if(!repeat)
+			this.messagePartitions(target)
+		this.lastIteration+=1
+		println("Starting iteration: "+this.lastIteration)
+		val iteration = this.lastIteration
+		val expectedReplies = this.ccrdt.partitioningSize
+		if(this.it_Counter<iteration){
+			this.it_Counter = iteration
+			this.it_maxSize = expectedReplies
+			this.it_size = 1
+//			this.remote_CCRDT = data.hollowReplica
+		}else if(this.it_Counter==iteration){
+			this.it_size += 1
+		}else if(this.it_Counter>iteration) println("> > Received an old iteration request???")
+//		this.remote_CCRDT.merge(data)
+		//			println("> Partition "+this.ccrdt.reference+"("+this.partitionPlace+") received data request reply with data size <"+data.size()+">, total data size <"+this.remote_CCRDT.size()+">")
+		if(this.it_size==this.it_maxSize){
+			//				println("doing next computation: "+iteration)
+			this.lastIteration = iteration
+			this.computeIteration
+		}
+		titan ! new CCRDTDataRequest(target, this.ccrdt.reference, this.lastIteration)
+	}
 
 	//TODO: make it abstract, based on trigger, etc
 	//send a message to every(?) links partition, requesting their data so that it can be used with the join
@@ -72,11 +101,14 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 	//TODO: assuming a join for now...
 	//: 9. Ranks runs the computation expressed by the Trigger: a join, based on the Key, of Links (remote ccrdt) and the last (complete) local version of ranks
 	def computeIteration{
-//		println("computing iteration: "+this.it_Counter)
+		println("computing iteration: "+this.it_Counter+" on partition: "+this.partitionPlace)
 		this.localTrigger.asInstanceOf[CheckTrigger].leftJoin(this.ccrdt.asInstanceOf[ScratchpadRanks], this.remote_CCRDT.asInstanceOf[Links])
 //		println("Iteration step "+this.it_Counter+" complete")
 		compute
 	}
+
+	def truncateAt(n: Double, p: Int): Double = { val s = math pow (10, p); (math floor n * s) / s }
+
 
 	def compute{
 		if(this.localTrigger==null)
@@ -93,7 +125,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 
 		//TODO: 1.1 if it's the first iteration (0), assume it will be false anyway, and simply assume false [skip to _5_]
 		if(lastIteration==0){//assume false
-			println("First iteration, starting join")//TODO skip forward to [_5_]
+			println("First iteration, starting join ["+System.nanoTime()+"]")//TODO skip forward to [_5_]
 			if(this.partitionPlace==1)//the first partition makes the decisions
 				this.messagePartitions("links")
 		}
@@ -101,6 +133,10 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 		else{//not the first iteration, run check Condition
 			val result = this.localTrigger.asInstanceOf[CheckTrigger].check(this.ccrdt.asInstanceOf[ScratchpadRanks])
 //			println(">Checking iteration condition: Iteration #"+this.lastIteration+", returned: "+result)
+//			val blah: Double = (result.toDouble*100.0)
+//			val blah2: Double = this.ccrdt.asInstanceOf[ScratchpadRanks].getLast.size().toDouble
+//			val blah3: Double = blah/blah2
+//			println("Iteration verification [partition{"+this.partitionPlace+"}, iteration{"+this.lastIteration+"}: "+(truncateAt(100.00-blah3, 2))+"%")
 			if(result){
 				println("Iteration verification suggesting to stop on partition: "+this.partitionPlace+", iteration: "+this.lastIteration)
 				//I should now sync this to the first, which is the one that actually decides what to do
@@ -175,6 +211,8 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 		}*/
 		case CRDTSyncTitanMessage(ccrdt: ComputationalCRDT, key: Long) => this.merge(ccrdt)//TODO: check: I should be able to ignore the key here - double-check??
 		case ManualCRDTSyncTitanMessage(ccrdt: ComputationalCRDT, key: Long, myPartition: Int, myPartitioningSize: Int) => {
+			println("["+System.nanoTime()+"]ManualCRDTSync@partition: "+this.partition.reference+"["+key+"]")
+			//println("["+System.nanoTime()+"]Epochsync@partition: "+this.partition.reference+"["+source+"]")
 			this.merge(ccrdt)
 			if(this.hack==null)
 				this.hack = new Array[Int](myPartitioningSize)
@@ -205,6 +243,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 			}
 		}
 		case EpochSync(source: String, epoch: Int) => {
+			println("["+System.nanoTime()+"]Epochsync@partition: "+this.partition.reference+"["+source+"]")
 			this.localReplicas.foreach{actor: ActorRef =>
 				actor ! new EpochSync(source, epoch)
 			}
@@ -245,14 +284,37 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 					this.check_confirmed +=1
 			}else println("Received an old iteration check message???")
 			if(this.check_results == this.partitionsSize){
+				println("Full Iteration time: "+((System.nanoTime()-this.computeTime)/1000000))
 				//then I have received all the messages and should make a decision
 				if(this.partitionsSize == this.check_confirmed){
-					println("Iteration stopped @ step: "+iterationStep)
+					println("Iteration stopped @ step: "+iterationStep+", "+System.nanoTime())
+//					println(this.ccrdt.asInstanceOf[ScratchpadRanks].getLast.toString)
 				}else{
-					this.messagePartitions("links")//start the next iteration!
+					this.messagePartitions("links", true)//start the next iteration!
+//					this.computeIteration
 				}
 			}
 		}
+		/*
+		* if(this.it_Counter<iteration){
+				this.it_Counter = iteration
+				this.it_maxSize = expectedReplies
+				this.it_size = 1
+				this.remote_CCRDT = data.hollowReplica
+			}else if(this.it_Counter==iteration){
+				this.it_size += 1
+			}else if(this.it_Counter>iteration) println("> > Received an old iteration request???")
+			this.remote_CCRDT.merge(data)
+//			println("> Partition "+this.ccrdt.reference+"("+this.partitionPlace+") received data request reply with data size <"+data.size()+">, total data size <"+this.remote_CCRDT.size()+">")
+			if(this.it_size==this.it_maxSize){
+//				println("doing next computation: "+iteration)
+				this.lastIteration = iteration
+				this.computeIteration
+			}
+		*
+		* */
+
+
 	  case _ => {
 			println(this.toString+": Unkown message received")
 		}

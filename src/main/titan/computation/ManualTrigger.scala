@@ -13,6 +13,8 @@ import scala.collection.mutable.ListBuffer
 class ManualTrigger(computationSource: String, operation: String, triggerTarget: String) extends Trigger(computationSource, operation, triggerTarget, 0){
 	triggerType = "activated"
 
+	def this() = this("","","")
+
 	override def compute(titanData: TitanData): ListBuffer[TitanData] = {
 //		println("blah")
 		return null

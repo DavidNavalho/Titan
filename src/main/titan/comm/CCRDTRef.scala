@@ -1,9 +1,9 @@
 package main.titan.comm
 
 import akka.actor.ActorRef
-import main.titan.data.messaging.Messaging.TitanMessage
 import sys.dht.api.DHT
 import sys.Sys.Sys
+import main.titan.data.messaging.Messaging.TitanMessage
 
 
 /**
@@ -16,6 +16,7 @@ import sys.Sys.Sys
 class CCRDTRef(actor: ActorRef) {
 	var rpc: Boolean = false;
 	var stub: DHT = null
+
 	def this(rpc: Boolean) = {
 		this(null)
 		this.rpc = rpc
@@ -24,7 +25,7 @@ class CCRDTRef(actor: ActorRef) {
 
 	def message(msg: TitanMessage){
 		if(rpc){
-			this.stub.send(msg, msg)
+//			this.stub.send(msg, msg)
 		}
 		else
 			this.actor ! msg

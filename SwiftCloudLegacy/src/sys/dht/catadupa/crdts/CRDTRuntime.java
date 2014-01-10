@@ -3,10 +3,16 @@ package sys.dht.catadupa.crdts;
 import sys.dht.catadupa.crdts.time.LVV;
 import sys.dht.catadupa.crdts.time.Timestamp;
 
-public class CRDTRuntime {
+import java.io.Serializable;
+
+public class CRDTRuntime implements Serializable {
 
 	protected LVV vv;
 	protected String siteId;
+
+    public CRDTRuntime(){
+        //
+    }
 
 	public CRDTRuntime(final String siteId) {
 		this.siteId = siteId;

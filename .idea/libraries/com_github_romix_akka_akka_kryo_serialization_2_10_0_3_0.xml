@@ -1,0 +1,19 @@
+<component name="libraryTable">
+  <library name="com.github.romix.akka:akka-kryo-serialization_2.10:0.3.0" type="repository">
+    <properties maven-id="com.github.romix.akka:akka-kryo-serialization_2.10:0.3.0" />
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/akka-kryo-serialization_2.10-0.3.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/scala-library-2.10.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/akka-remote_2.10-2.2.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/akka-actor_2.10-2.2.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/config-1.0.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/netty-3.6.6.Final.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/protobuf-java-2.4.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/uncommons-maths-1.2.2a.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/akka-kernel_2.10-2.2.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/kryo-2.22.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

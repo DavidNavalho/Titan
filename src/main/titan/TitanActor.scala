@@ -10,6 +10,8 @@ import main.titan.data.messaging.Messaging.DataTitanMessage
 import main.titan.data.messaging.Messaging.TriggerTitanMessage
 import main.titan.data.messaging.Messaging.CRDTCreationTitanMessage
 import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
+import akka.cluster.ClusterEvent.{MemberRemoved, UnreachableMember, MemberUp, CurrentClusterState}
+import com.typesafe.config.ConfigFactory
 
 /**
  * Created with IntelliJ IDEA.
@@ -20,10 +22,13 @@ import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
  */
 //TODO: when a Trigger is added, check for existing data: if there is any, it should be retrieved and processed (depending on configuration/keywords...)
 //TODO: do not return until a partition/Trigger is actually fully installed (e.g, use '?' in actors)
-class Titan extends Actor{
+class TitanActor extends Actor{
 	val partitions: HashMap[Long, ActorRef] = new HashMap[Long, ActorRef]();
-	val titanActorSystem: ActorSystem = ActorSystem("TitanMessaging")
+	val cf = ConfigFactory.load("app")
+	val titanActorSystem: ActorSystem = ActorSystem("TitanMessaging",cf)
 	val namedPartitions: HashMap[String, CCRDTSkeleton] = new HashMap[String, CCRDTSkeleton]();
+
+	//set this node up as a DHT Node
 
 
 	//TODO: Communication protocol
@@ -35,8 +40,10 @@ class Titan extends Actor{
 		for(i <- 1 to skel.partitioningSize){
 			val partitionKey: Long = skel.getPartitionKey(i);
 			val partitionActor: ActorRef = titanActorSystem.actorOf(Props[TitanPartition](new TitanPartition(ccrdt.hollowReplica, self, i, skel.partitioningSize)))
-			if(this.partitions.contains(partitionKey))
+			if(this.partitions.contains(partitionKey)){
 				println("Titan: partitionKey already exists!!!")
+				return
+			}
 			/*val systemActors = this.partitions.get(partitionKey);
 			var list: ListBuffer[ActorRef] = null;
 			if(!systemActors.isDefined){
@@ -75,6 +82,9 @@ class Titan extends Actor{
 	//TODO: this is actually the method after having passed the Trigger to the main (target) CCRDT
 	def addTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT){
 		val source: String = trigger.source;
+		println("#>TRIGGER SOURCE: "+source)
+		println("#>TRIGGER "+this.namedPartitions.size)
+		println("#>TRIGGER "+this.namedPartitions.contains(trigger.source))
 		val sourceSkeleton: CCRDTSkeleton = this.namedPartitions.get(source).get;
 		for(i <- 1 to sourceSkeleton.partitioningSize){
 			this.partitions.get(sourceSkeleton.getPartitionKey(i)).get ! new TriggerTitanMessage(trigger, targetHollowReplica)
@@ -95,6 +105,7 @@ class Titan extends Actor{
 		case ManualCRDTSyncTitanMessage(ccrdt: ComputationalCRDT, partitionKey: Long, myPartition: Int, myPartitioningSize: Int) =>
 			this.manuallymergeCCRDT(ccrdt, partitionKey, myPartition, myPartitioningSize)
 		case EpochSync(str: String, epoch: Int) => {
+			println("received sync")
 			val skel: CCRDTSkeleton = this.namedPartitions.get(str).get;
 			for(i <- 1 to skel.partitioningSize){
 				val partition: Long = skel.getPartitionKey(i)
@@ -121,6 +132,19 @@ class Titan extends Actor{
 			val partition: Long = skel.getPartitionKey(1)
 			partitions.get(partition).get ! new IterationCheckSyncTitanMessage(target, iterationStep, stop)
 		}
+
+	//#######
+		//Cluster management messages
+		case state: CurrentClusterState ⇒
+			println("Current members: {}", state.members.mkString(", "))
+		case MemberUp(member) ⇒
+			println("Member is Up: {}", member.address)
+		case UnreachableMember(member) ⇒
+			println("Member detected as unreachable: {}", member)
+		case MemberRemoved(member, previousStatus) ⇒
+			println("Member is Removed: {} after {}",
+				member.address, previousStatus)
+
 		case _ => println("Titan: unkown message received")
 	}
 }

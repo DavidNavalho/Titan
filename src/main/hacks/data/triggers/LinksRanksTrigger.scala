@@ -14,6 +14,8 @@ import scala.collection.mutable.ListBuffer
  */
 class LinksRanksTrigger(computationSource: String, operation: String, triggerTarget: String) extends ManualTrigger(computationSource, operation, triggerTarget){
 
+	def this() = this("","","")
+
 	override def compute(titanData: TitanData): ListBuffer[TitanData] = {
 //		val key: String = titanData.key //not required
 		val data: ORSet[String] = titanData.data.asInstanceOf[ORSet[String]]

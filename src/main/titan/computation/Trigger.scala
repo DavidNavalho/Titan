@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
  */
 //TODO: ideally, it should return multiple Tuple2
 //source(s) -> operation -> processing -> target
-class Trigger(computationSource: String, operation: String, triggerTarget: String, timing: Int) {
+class Trigger(computationSource: String, operation: String, triggerTarget: String, timing: Int) extends Serializable{
 	val source:String = computationSource;
 	val operationID: String = operation;
 	val target: String = triggerTarget;

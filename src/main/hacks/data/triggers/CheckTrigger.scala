@@ -21,6 +21,8 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 	this.triggerType = "fullIteration"
 	val minThreshold: Double = threshold
 
+	def this() = this("","","","",0.0)
+
 //	var blah_max: Double = 0
 
 	private def weight(value: Double): Double = {
@@ -42,8 +44,9 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 		return dataSet
 	}
 
-	//TODO: something weird going on....think it's the CRDTs....
 	 def check(scratchpad: ScratchpadRanks): Boolean = {
+		 val startTime = System.nanoTime()
+//		 var falses: Int = 0
 //			this.blah_max = 0
 //		 println("SCRATCHPAD LENGTH: last->"+scratchpad.getLast.size+", previous->"+scratchpad.getPrevious.size)
 	   val current: Ranks = scratchpad.getLast.asInstanceOf[Ranks]
@@ -59,11 +62,14 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 			    previousValue = previous.ranks.get(key).iterator().next().value()
 			 if(!this.compute(new TitanData(key,(currentValue, previousValue))).head.data.asInstanceOf[Boolean]){
 //				 println("Check Trigger max difference: "+this.blah_max)
+				 println("Check completion time: "+((System.nanoTime()-startTime)/1000000))
 				 return false
+//				 falses+=1
 			 }
-
 		 }
 //		println("Check Trigger max difference: "+this.blah_max)
+//		 return falses
+		 println("Check completion time: "+((System.nanoTime()-startTime)/1000000))
 		 return true
 	}
 
@@ -73,21 +79,50 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 		val tupleData: (ORSet[String], Double) = data.data.asInstanceOf[(ORSet[String], Double)]
 		val distributedRank: Double = tupleData._2/tupleData._1.size()
 		val it = tupleData._1.iterator()
-		while(it.hasNext)
-			dataSet+=new TitanData(it.next(), distributedRank.asInstanceOf[AnyRef])
+		while(it.hasNext){
+			val next = it.next()
+			println("Adding "+distributedRank+" to "+next)
+			dataSet+=new TitanData(next, distributedRank.asInstanceOf[AnyRef])
+		}
 		return dataSet
 	}
 
 	//TODO: problem: if a link isn't linked, what's it's score? 1?
 	//for each join, run the computation and add it to a ListBuffer of titandata of the format: [link(key), [[links], rank](data)]
 	def leftJoin(scratchpad: ScratchpadRanks, links: Links){
+		val startTime = System.nanoTime()
+//		println("Left join with links:\r\n"+links.toString+"...and ranks: \r\n"+scratchpad.getLast.toString)
 //		println("LEFTJOIN SCRATCHPAD LENGTH: "+scratchpad.scratchpads.length)
-		val current: Ranks = scratchpad.getLast.asInstanceOf[Ranks]
-		scratchpad.addNew(current.hollowReplica)
+		val oldRanks: Ranks = scratchpad.getLast.asInstanceOf[Ranks]
+		scratchpad.addNew(oldRanks.hollowReplica)
 //		println("LEFTJOIN SCRATCHPAD LENGTH AFTER ADD: "+scratchpad.scratchpads.length)
 		val newRanks: Ranks = scratchpad.getLast.asInstanceOf[Ranks]
 //		println("Previous join different: "+current.ranks.getValue.entrySet().size())
-		val it = current.ranks.getValue.entrySet().iterator()
+		val it = links.myorMap.getValue.entrySet().iterator()
+		while(it.hasNext){
+			val link_links = it.next()
+			val links_list = link_links.getValue.iterator().next()
+			val list_size = links_list.size()
+			val links_it = links_list.iterator()
+			while(links_it.hasNext){
+				val linked_link: String = links_it.next()
+				if(oldRanks.ranks.lookup(link_links.getKey)){
+//					println("previous rank: "+oldRanks.ranks.get(linked_link).iterator().next().value)
+//					println("Adding "+((weight((oldRanks.ranks.get(link_links.getKey).iterator().next().value())))/list_size+" to "+linked_link))
+					newRanks.addData(new TitanData(linked_link, ((weight((oldRanks.ranks.get(link_links.getKey).iterator().next().value())))/list_size).asInstanceOf[AnyRef]))
+				}
+			}
+		}
+		val midTime = System.nanoTime()
+		val it2 = links.myorMap.getValue.entrySet().iterator()
+		while(it2.hasNext){
+			val key = it2.next().getKey
+			if(oldRanks.ranks.lookup(key))
+				if(!newRanks.ranks.lookup(key))
+					newRanks.addData(new TitanData(key, 1.0.asInstanceOf[AnyRef]))
+		}
+
+		/*val it = current.ranks.getValue.entrySet().iterator()
 		while(it.hasNext){
 			val currentState = it.next()
 			val key: String = currentState.getKey
@@ -103,8 +138,16 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 				newRanks.addData(new TitanData(key,currentValue.asInstanceOf[AnyRef]))
 			}
 
-		}
+		}*/
 //		println("Left join with previous ranks size: "+current.size())
 //		println("Left join done: "+newRanks.size()+" of size")
+		val units = 1000000
+		val endTime = System.nanoTime()
+		val firstHalf = (midTime-startTime)/units
+		val secondHalf = (endTime-midTime)/units
+		val totalTime = (firstHalf+secondHalf)
+
+		println("Join completion times: "+totalTime)
+
 	}
 }

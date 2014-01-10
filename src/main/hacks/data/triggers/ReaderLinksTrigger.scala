@@ -13,6 +13,8 @@ import scala.collection.mutable.ListBuffer
  */
 class ReaderLinksTrigger(computationSource: String, operation: String, triggerTarget: String) extends ManualTrigger(computationSource, operation, triggerTarget){
 
+	def this() = this("","","")
+
 	override def compute(titanData: TitanData): ListBuffer[TitanData] = {
 		return (new ListBuffer[TitanData]()+=titanData);
 	}

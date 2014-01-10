@@ -21,6 +21,8 @@ class MapCCRDT(nodeName: String, partitions: Int) extends ComputationalCRDT{
 	val orMap: ORMap[String, String] = new ORMap[String, String]();
 	val runtime: CRDTRuntime = new CRDTRuntime(nodeName);
 
+	def this() = this("",0)
+
 	def addData(titanData: TitanData): TitanData = {
 		//val tuple: (String, String) = data.asInstanceOf[(String, String)];
 		val key: String = titanData.key

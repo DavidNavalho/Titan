@@ -1,10 +1,9 @@
 package examples.tests
 
-import java.lang.String
 import main.titan.data.control.{SysMap}
-import akka.actor.{Props, ActorRef, ActorSystem}
+import akka.actor.{ActorSelection, Props, ActorRef, ActorSystem}
 import akka.pattern.ask
-import main.titan.Titan
+import main.titan.{TitanNode, TitanActor}
 import main.titan.data.ccrdt.{CCRDTSkeleton, ComputationalCRDT}
 import main.hacks.data.ccrdts.{ScratchpadRanks, ORSetCCRDT, Ranks, Links}
 import scala.io.Source
@@ -24,6 +23,15 @@ import main.titan.data.messaging.Messaging.TriggerTitanMessage
 import main.titan.data.messaging.Messaging.TargetedDataTitanMessageWithReply
 import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
 import main.hacks.data.triggers.{CheckTrigger, LinksRanksTrigger, ReaderLinksTrigger}
+import sys.dht.api.DHT
+import sys.Sys
+import sys.dht.catadupa.KryoCatadupa
+import akka.cluster.Cluster
+import akka.cluster.ClusterEvent.ClusterDomainEvent
+import main.titan.data.messaging.catadupa.{MiniTitan, CatadupaReply, CatadupaKey, CatadupaRequest}
+import main.java.TitanHandler
+import main.java.TitanHandler.TitanReplyHandler
+import com.typesafe.config.ConfigFactory
 
 /**
  * Created with IntelliJ IDEA.
@@ -46,7 +54,7 @@ object Tests {
 	}
 
 	def testTitan(){
-		val titan: Titan = new Titan();
+		val titan: TitanActor = new TitanActor();
 		//create a CCRDT
 		val links: Links = new Links("links", 2)
 		titan.addCCRDT(links)
@@ -71,12 +79,13 @@ object Tests {
 		println("done reading links")
 	}
 
-	def readStuffWithCheckOnto(titan: ActorRef, target: String){
+	def readStuffWithCheckOnto(titan: ActorSelection, target: String){
+		println("Time: "+System.nanoTime())
 		for(line <- Source.fromFile("pagerank_data.txt").getLines()) {
 			val words: Array[String] = line.split(' ');
 			if(words.length!=2)
 				println("Read something weird...")
-			implicit val timeout = Timeout(1 minutes)
+//			implicit val timeout = Timeout(1 minutes)
 			/*val future = */titan ! new TargetedDataTitanMessageWithReply(target, new TitanData(words(0),words(1)));
 //			val result: String = Await.result(future.mapTo[String], 1 minute)
 //			println(result)
@@ -86,16 +95,16 @@ object Tests {
 		}
 	}
 
-	def iteration(links: Links){
+/*	def iteration(links: Links){
 		//Init: create empty Rank
 		val ranks: Ranks = new Ranks("ranks",1);
 		//using: links
-	}
+	}*/
 
 	def testPageRank(){
 		//start Titan
 		val actorSystem: ActorSystem = ActorSystem("Titan")
-		val titan: ActorRef = actorSystem.actorOf(Props[Titan](new Titan))
+		val titan: ActorRef = actorSystem.actorOf(Props[TitanActor](new TitanActor))
 
 //		val titan: Titan = new Titan();
 		//create/add a new CCRDT
@@ -111,16 +120,18 @@ object Tests {
 
 		//only start adding data after everything is created
 		//populate reader
-		Thread.sleep(500)
+//		Thread.sleep(500)
 		readStuffOnto(titan, "reader");
 
 	}
 
-	def it_init(titan: ActorRef){
+	def it_init(titan: ActorSelection){
 		//initial rankings -> a normal computation
-		val ranks: ScratchpadRanks = new ScratchpadRanks("ranks",2,2)
+		val ranks: ScratchpadRanks = new ScratchpadRanks("ranks",4,2)
+//		this.stub.send(new CatadupaKey("ranks"),new CatadupaMessage(new CRDTCreationTitanMessage(ranks)))
 		titan ! CRDTCreationTitanMessage(ranks)
 		val secondTrigger: LinksRanksTrigger = new LinksRanksTrigger("links", "all", "ranks")
+//		this.stub.send(new CatadupaKey("links"), new CatadupaMessage(new TriggerTitanMessage(secondTrigger, ranks.hollowReplica)))
 		titan ! TriggerTitanMessage(secondTrigger, ranks.hollowReplica)
 	}
 
@@ -128,44 +139,60 @@ object Tests {
 		return false
 	}
 
-	def it_iteration(titan: ActorRef, links: Links){
+	def it_iteration(titan: ActorSelection, links: Links){
 		val source: String = "links"
 		val source2: String = "ranks"
 		//since I'm using ranks to compute new ranks, I want to get 'hollow' (full) replicas onto the scratchpad
 		//and run the computation/Trigger there
-		val iterationTrigger: CheckTrigger = new CheckTrigger("ranks","links","key-join","ranks",10)
+		val iterationTrigger: CheckTrigger = new CheckTrigger("ranks","links","key-join","ranks",0.1)
+//		this.stub.send(new CatadupaKey("ranks"), new CatadupaMessage(new TriggerTitanMessage(iterationTrigger, links.hollowReplica)))
 		titan ! TriggerTitanMessage(iterationTrigger, links.hollowReplica)     //null hollow replica?
 	}
 
-	def it_check(titan: ActorRef){
-
-	}
-
-	def it_computation(titan: ActorRef){
-
-	}
-
-	def iteration(titan: ActorRef, links: Links){
+	def iteration(titan: ActorSelection, links: Links){
 		it_init(titan)
 		it_iteration(titan, links)
 	}
 
-	def testPhasedPageRank(){
-		val actorSystem: ActorSystem = ActorSystem("Titan")
-		val titan: ActorRef = actorSystem.actorOf(Props[Titan](new Titan()))
-		val reader: ComputationalCRDT = new ORSetCCRDT("reader",1);
+
+	sys.Sys.init()
+//	new TitanNode
+	var stub: DHT = Sys.Sys.getDHT_ClientStub()
+
+
+
+	def testPhasedPageRank(titan: ActorSelection){
+//		import com.typesafe.config.ConfigFactory
+//		System.setProperty("akka.remote.netty.tcp.port", 2551+"")
+		/*val actorSystem = ActorSystem("Titan")//, ConfigFactory.load("TitanNode"))
+//		val actorSystem: ActorSystem = ActorSystem("Titan")
+		val titan: ActorRef = actorSystem.actorOf(Props[TitanActor], "titanCluster")//(new TitanActor()))*/
+//		Cluster(actorSystem).subscribe(titan, classOf[ClusterDomainEvent])
+
+
+//		val mt = new MiniTitan
+//		val titan: ActorSelection = mt.getReference(new CatadupaKey(1))
+		val reader: ComputationalCRDT = new ORSetCCRDT("reader",4);
+//		this.stub.send(new CatadupaKey("reader"), new CatadupaMessage(new CRDTCreationTitanMessage(reader)))
 		titan ! new CRDTCreationTitanMessage(reader);
+
+
+
 		//setup the rest of the system nodes
-		val links: Links = new Links("links",2);
-		titan ! CRDTCreationTitanMessage(links)
+		val links: Links = new Links("links",4);
+//		this.stub.send(new CatadupaKey("links"), new CatadupaMessage(new CRDTCreationTitanMessage(links)))
+		titan ! new CRDTCreationTitanMessage(links)
 		//setup the triggers
 		val firstTrigger: ReaderLinksTrigger = new ReaderLinksTrigger("reader", "all", "links");
+//		this.stub.send(new CatadupaKey("reader"), new CatadupaMessage(new TriggerTitanMessage(firstTrigger, links.hollowReplica)))
 		titan ! TriggerTitanMessage(firstTrigger, links.hollowReplica)
 		//send signal to start computation?
 		//a partition needs knowledge about how many partitions it should get data from.
+
 		iteration(titan, links)
 		readStuffWithCheckOnto(titan, "reader")
-		println("file successfully read to system");
+		println("file successfully read to system", System.nanoTime());
+		println("Time after read: "+System.nanoTime())
 		titan ! new EpochSync("reader", 0)
 
 	}
@@ -192,9 +219,33 @@ object Tests {
 		//testSysmap()
 		//testTitan()
 //		testPageRank()
-		  testPhasedPageRank()
+//		println("Full Start time: "+System.nanoTime())
+//		  testPhasedPageRank()
 //		testKeyHashing()
 //		testCRDTS
+//
+////		val mt = new MiniTitan
+////		mt.TitanOnline
+////		Thread.sleep(5000)
+//		//val titanString: ActorSelection =
+//		val reader: ComputationalCRDT = new ORSetCCRDT("reader",1);
+//		val msg: TitanMessage = new CRDTCreationTitanMessage(reader);
+		val key: CatadupaKey = new CatadupaKey(0)
+
+		val cf = ConfigFactory.load("MiniTitan")
+		val actorSystem: ActorSystem = ActorSystem("TitanNode",cf)
+		val mt: ActorRef = actorSystem.actorOf(Props[MiniTitan](new MiniTitan))
+		implicit val timeout = Timeout(30 seconds)
+		val future = mt ? (key)
+		val titan: ActorSelection = Await.result(future, 1 minute).asInstanceOf[ActorSelection]
+//		titan ! new CRDTCreationTitanMessage(reader)
+		testPhasedPageRank(titan)
+		//send this reader, through catadupa
+//		titan ! new CRDTCreationTitanMessage(reader);
+//		testPhasedPageRank(titan)
+
+//		println(result.toString)
+//		println("Received a titanRef!: "+titan.toString())
 	}
 
 

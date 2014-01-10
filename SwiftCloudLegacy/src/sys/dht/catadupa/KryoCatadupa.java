@@ -1,5 +1,6 @@
 package sys.dht.catadupa;
 
+import akka.actor.ActorRef;
 import sys.dht.catadupa.crdts.ORSet;
 import sys.dht.catadupa.crdts.time.LVV;
 import sys.dht.catadupa.msgs.CatadupaCast;
@@ -38,5 +39,6 @@ public class KryoCatadupa {
 		KryoLib.register(MembershipUpdate.class, 0x3C);
 		KryoLib.register(ORSet.class, 0x3D);
 		KryoLib.register(JoinRequest.class, 0x3E);
+        KryoLib.register(ActorRef.class, 0x3F);
 	}
 }

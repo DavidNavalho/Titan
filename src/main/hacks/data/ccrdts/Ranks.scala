@@ -13,13 +13,15 @@ import java.util.{Set, Iterator}
  * Date: 07/11/13
  * Time: 11:21
  * To change this template use File | Settings | File Templates.
- */
+ */                      //check how ranking is being done?
 class Ranks(nodeName: String, partitions: Int) extends ComputationalCRDT{
 	val reference: String = nodeName
 	val partitioningSize: Int = partitions
 	val skeleton = new CCRDTSkeleton(reference, partitioningSize)
 
 	val ranks: ORMap[String, CRDTDouble] = new ORMap[String, CRDTDouble]();
+
+	def this() = this("",0)
 
 	//receives tuple: Link, ORSet(?) of links
 	def addData(titanData: TitanData): TitanData = {
@@ -89,6 +91,10 @@ class Ranks(nodeName: String, partitions: Int) extends ComputationalCRDT{
 		return this.ranks.size()
 	}
 
+	private def weight(value: Double): Double = {
+		return (0.15+0.85*value)
+	}
+
 	override def toString(): String = {
 		var result: String = "";
 		val it = this.ranks.getValue.entrySet().iterator()
@@ -96,7 +102,7 @@ class Ranks(nodeName: String, partitions: Int) extends ComputationalCRDT{
 		while(it.hasNext){
 			counter+=1
 			val itRank = it.next()
-			result+="Ranking: "+itRank.getKey+"["+itRank.getValue.iterator().next().value()+"]\r\n"
+			result+="Ranking: "+itRank.getKey+"["+weight(itRank.getValue.iterator().next().value())+"]\r\n"
 		}
 		return result
 	}

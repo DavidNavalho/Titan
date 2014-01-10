@@ -23,6 +23,9 @@ class ORSetCCRDT(nodeName: String, partitions: Int) extends ComputationalCRDT{
 	var orSet: ORSet[AnyRef] = new ORSet[AnyRef]();
 	val runtime: CRDTRuntime = new CRDTRuntime(nodeName)
 
+	//TODO: required for Kryo - really hate this
+	def this() = this("",0)
+
 	def addData(titanData: TitanData): TitanData = {
 		this.orSet.add(titanData, runtime.getCausalityClock().recordNext(nodeName))
 		return titanData;

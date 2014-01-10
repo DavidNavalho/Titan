@@ -57,7 +57,9 @@ public class Discovery implements Runnable {
 			for (;;) {
 				try {
 					DatagramPacket req = new DatagramPacket(new byte[65536], 65536);
+                    System.err.println(ss);
 					ss.receive(req);
+                    System.err.println(req);
 					Endpoint ep = registry.get(readObject(req));
 					if (ep != null) {
 						byte[] replyData = serializer.writeObject(ep);
@@ -79,15 +81,17 @@ public class Discovery implements Runnable {
 		long deadline = now() + timeout;
 		while (now() < deadline) {
 			try {
+//                Thread.dumpStack();
 				cs.setTimeToLive(ttl);
 				cs.send(request);
 				cs.setSoTimeout((int) Math.min(500, deadline - now()));
 				DatagramPacket reply = new DatagramPacket(new byte[65536], 65536);
 				cs.receive(reply);
 				Endpoint remote = readObject(reply);
-				Log.finest(String.format("Discovered: %s at %s in %d ms", key, remote, now() - (deadline - timeout)));
+//				System.out.println(String.format("Discovered: %s at %s in %d ms", key, remote, now() - (deadline - timeout)));
 				return remote;
 			} catch (SocketTimeoutException x) {
+//                x.printStackTrace();
 			} catch (IOException x) {
 				x.printStackTrace();
 			}
@@ -100,7 +104,7 @@ public class Discovery implements Runnable {
 	}
 
 	public static Endpoint lookup(String key, int timeout) {
-		return getInstance().doLookup(key, timeout, 1);
+		return getInstance().doLookup(key, timeout, 2);
 	}
 
 	synchronized public static void register(String key, Endpoint endpoint) {
