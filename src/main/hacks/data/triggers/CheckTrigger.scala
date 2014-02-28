@@ -87,9 +87,46 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 		return dataSet
 	}
 
+	var doneBefore: Boolean = false
+
+	def skippedLeftJoin(scratchpad: ScratchpadRanks, links: Links){
+		val startTime = System.nanoTime()
+
+		val oldRanks: Ranks = scratchpad.getLast.asInstanceOf[Ranks]
+		scratchpad.addNew(oldRanks.hollowReplica)
+		val newRanks: Ranks = scratchpad.getLast.asInstanceOf[Ranks]
+
+		/*val it = oldRanks.ranks.
+
+		val it = links.myorMap.getValue.entrySet().iterator()
+
+		while(it.hasNext){
+			val link_links = it.next()
+			val links_list = link_links.getValue.iterator().next()
+			val list_size = links_list.size()
+			val links_it = links_list.iterator()
+			while(links_it.hasNext){
+				val linked_link: String = links_it.next()
+				if(oldRanks.ranks.lookup(link_links.getKey)){
+					newRanks.addData(new TitanData(linked_link, ((weight((oldRanks.ranks.get(link_links.getKey).iterator().next().value())))/list_size).asInstanceOf[AnyRef]))
+				}
+			}
+		}*/
+
+//		val units = 1000000
+		val endTime = System.nanoTime()
+		val totalTime = (endTime+startTime)
+
+		println("Skip-Join completion times: "+totalTime)
+	}
+
 	//TODO: problem: if a link isn't linked, what's it's score? 1?
 	//for each join, run the computation and add it to a ListBuffer of titandata of the format: [link(key), [[links], rank](data)]
 	def leftJoin(scratchpad: ScratchpadRanks, links: Links){
+		/*if(doneBefore){
+			skippedLeftJoin()
+			return
+		}*/
 		val startTime = System.nanoTime()
 //		println("Left join with links:\r\n"+links.toString+"...and ranks: \r\n"+scratchpad.getLast.toString)
 //		println("LEFTJOIN SCRATCHPAD LENGTH: "+scratchpad.scratchpads.length)
@@ -99,28 +136,48 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 		val newRanks: Ranks = scratchpad.getLast.asInstanceOf[Ranks]
 //		println("Previous join different: "+current.ranks.getValue.entrySet().size())
 		val it = links.myorMap.getValue.entrySet().iterator()
+
+		var int_total: Double = 0
+		var int_counter: Int = 0
+
+		var int_total_weight: Double = 0
+		var int_counter_weight: Double = 0
+
 		while(it.hasNext){
 			val link_links = it.next()
 			val links_list = link_links.getValue.iterator().next()
 			val list_size = links_list.size()
 			val links_it = links_list.iterator()
+			val internalTime = System.nanoTime()
 			while(links_it.hasNext){
 				val linked_link: String = links_it.next()
 				if(oldRanks.ranks.lookup(link_links.getKey)){
+					val weighted: Double = weight((oldRanks.ranks.get(link_links.getKey).iterator().next().value()))/list_size
 //					println("previous rank: "+oldRanks.ranks.get(linked_link).iterator().next().value)
 //					println("Adding "+((weight((oldRanks.ranks.get(link_links.getKey).iterator().next().value())))/list_size+" to "+linked_link))
-					newRanks.addData(new TitanData(linked_link, ((weight((oldRanks.ranks.get(link_links.getKey).iterator().next().value())))/list_size).asInstanceOf[AnyRef]))
+					val weightTime = System.nanoTime()
+					newRanks.addData(new TitanData(linked_link, weighted.asInstanceOf[AnyRef]))
+					val weightTimeFinish = System.nanoTime()
+					int_total_weight+=weightTimeFinish-weightTime
 				}
+
 			}
+			int_counter_weight+=1
+			val internalFinish = System.nanoTime()
+			int_counter+=1
+			int_total+=internalFinish-internalTime
 		}
-		val midTime = System.nanoTime()
-		val it2 = links.myorMap.getValue.entrySet().iterator()
+
+
+
+		val midTime = System.nanoTime() //TODO: why am I doing this below?!?!?!?!
+/*		val it2 = links.myorMap.getValue.entrySet().iterator()
 		while(it2.hasNext){
 			val key = it2.next().getKey
 			if(oldRanks.ranks.lookup(key))
 				if(!newRanks.ranks.lookup(key))
 					newRanks.addData(new TitanData(key, 1.0.asInstanceOf[AnyRef]))
-		}
+		}*/
 
 		/*val it = current.ranks.getValue.entrySet().iterator()
 		while(it.hasNext){
@@ -147,7 +204,7 @@ class CheckTrigger(computationSource1: String, computationSource2: String, opera
 		val secondHalf = (endTime-midTime)/units
 		val totalTime = (firstHalf+secondHalf)
 
-		println("Join completion times: "+totalTime)
-
+		println("Join completion times: "+totalTime+" ("+((int_total/int_counter)/1000000)+" | "+((int_total_weight/int_counter_weight)/1000000)+")")
+		doneBefore = true
 	}
 }

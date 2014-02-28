@@ -144,7 +144,7 @@ object Tests {
 		val source2: String = "ranks"
 		//since I'm using ranks to compute new ranks, I want to get 'hollow' (full) replicas onto the scratchpad
 		//and run the computation/Trigger there
-		val iterationTrigger: CheckTrigger = new CheckTrigger("ranks","links","key-join","ranks",0.1)
+		val iterationTrigger: CheckTrigger = new CheckTrigger("ranks","links","key-join","ranks",5)
 //		this.stub.send(new CatadupaKey("ranks"), new CatadupaMessage(new TriggerTitanMessage(iterationTrigger, links.hollowReplica)))
 		titan ! TriggerTitanMessage(iterationTrigger, links.hollowReplica)     //null hollow replica?
 	}
@@ -226,7 +226,7 @@ object Tests {
 //
 ////		val mt = new MiniTitan
 ////		mt.TitanOnline
-////		Thread.sleep(5000)
+////		Thread.sleep(5000)                 \\\\\\\\\\\\\\
 //		//val titanString: ActorSelection =
 //		val reader: ComputationalCRDT = new ORSetCCRDT("reader",1);
 //		val msg: TitanMessage = new CRDTCreationTitanMessage(reader);

@@ -2,7 +2,6 @@ package examples.tests
 
 import sys.Sys
 import main.titan.TitanNode
-import java.lang.String
 
 /**
  * Created by davidnavalho on 09/12/13.
