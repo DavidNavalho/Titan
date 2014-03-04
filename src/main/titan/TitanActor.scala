@@ -1,7 +1,7 @@
 package main.titan
 
 import main.titan.data.ccrdt.{CCRDTSkeleton, ComputationalCRDT}
-import akka.actor.{Actor, Props, ActorSystem, ActorRef}
+import akka.actor._
 import scala.collection.mutable.{ListBuffer, HashMap}
 import main.titan.data.messaging.Messaging._
 import main.titan.data.messaging.TitanData
@@ -12,6 +12,28 @@ import main.titan.data.messaging.Messaging.CRDTCreationTitanMessage
 import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
 import akka.cluster.ClusterEvent.{MemberRemoved, UnreachableMember, MemberUp, CurrentClusterState}
 import com.typesafe.config.ConfigFactory
+import main.titan.data.messaging.catadupa.{MiniTitan, CatadupaKey}
+import akka.util.Timeout
+import scala.concurrent.duration._
+import akka.pattern.ask
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
+import main.titan.data.messaging.Messaging.CCRDTDataRequest
+import main.titan.data.messaging.Messaging.CRDTSyncTitanMessage
+import akka.cluster.ClusterEvent.MemberRemoved
+import akka.cluster.ClusterEvent.MemberUp
+import main.titan.data.messaging.Messaging.ManualCRDTSyncTitanMessage
+import main.titan.data.messaging.Messaging.DataTitanMessage
+import main.titan.data.messaging.Messaging.EpochSync
+import main.titan.data.messaging.Messaging.CCRDTDataRequestReply
+import akka.cluster.ClusterEvent.CurrentClusterState
+import main.titan.data.messaging.Messaging.CRDTCreationTitanMessage
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessageWithReply
+import main.titan.data.messaging.Messaging.IterationCheckSyncTitanMessage
+import akka.cluster.ClusterEvent.UnreachableMember
+import main.titan.data.messaging.Messaging.TriggerTitanMessage
+import scala.concurrent.Await
+
+//required for '?'
 
 /**
  * Created with IntelliJ IDEA.
@@ -30,8 +52,27 @@ class TitanActor extends Actor{
 
 	//set this node up as a DHT Node
 
+  /**
+   * MiniTitan Controller for finding other DHT Nodes
+   * */
+
+  //val key: CatadupaKey = new CatadupaKey(0)
+
+  val mtCF = ConfigFactory.load("MiniTitan")
+  val actorSystem: ActorSystem = ActorSystem("TitanNode",mtCF)
+  val mt: ActorRef = actorSystem.actorOf(Props[MiniTitan](new MiniTitan))
+  implicit val timeout = Timeout(30 seconds)
+  //val future = mt ? (key)
 
 	//TODO: Communication protocol
+
+  def findNode(nodeKey: Long){
+    println("Finding Titan Node")
+    val key: CatadupaKey = new CatadupaKey(nodeKey)
+    val future = mt ? key
+    val titan: ActorSelection = Await.result(future, 1 minute).asInstanceOf[ActorSelection]
+    println("Reply received")
+  }
 
 	//TODO: check for repeated keys
   //TODO: WHat happens with multiple partitions? How am I sending messages? -> estou a dar self como referência - pode ser, mas isto tem de ser 'distribuido', com base na chave de cada partição
@@ -39,6 +80,7 @@ class TitanActor extends Actor{
 		val skel: CCRDTSkeleton = ccrdt.skeleton
 		this.namedPartitions.put(skel.reference, skel);
 		for(i <- 1 to skel.partitioningSize){
+      findNode(skel.getPartitionKey(i))
 			val partitionKey: Long = skel.getPartitionKey(i);
 			val partitionActor: ActorRef = titanActorSystem.actorOf(Props[TitanPartition](new TitanPartition(ccrdt.hollowReplica, self, i, skel.partitioningSize)))
 			if(this.partitions.contains(partitionKey)){
