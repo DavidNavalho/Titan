@@ -11,14 +11,18 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="file://$USER_HOME$/Documents/workspace/SwiftCloudOctober2012/lib" />
+          <root url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" />
+          <root url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
-          <root url="file://$USER_HOME$/Documents/workspace/SwiftCloudOctober2012/lib" />
+          <root url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" />
+          <root url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" />
         </SOURCES>
-        <jarDirectory url="file://$USER_HOME$/Documents/workspace/SwiftCloudOctober2012/lib" recursive="false" />
-        <jarDirectory url="file://$USER_HOME$/Documents/workspace/SwiftCloudOctober2012/lib" recursive="false" type="SOURCES" />
+        <jarDirectory url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" recursive="false" type="SOURCES" />
+        <jarDirectory url="file://$MODULE_DIR$/../../../bin/libs/SwiftCloudOctober2012/lib" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
   </component>

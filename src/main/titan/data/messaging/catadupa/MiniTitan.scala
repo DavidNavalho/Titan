@@ -26,7 +26,7 @@ class MiniTitan extends Actor{
 //	}
 
 	def getReference(key: CatadupaKey): ActorSelection = {
-		println("Sending request for TitanNode Ref")
+		println("Sending request for TitanNode Ref ["+key.key+"]")
 		this.stub.send(key, new CatadupaRequest, this.handler)
 
 		println("Waiting for reply")

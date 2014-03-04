@@ -10,11 +10,11 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="file://$USER_HOME$/Documents/workspace/Titan/lib" />
+          <root url="file://$MODULE_DIR$/../../../bin/libs/Titan/lib" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
-        <jarDirectory url="file://$USER_HOME$/Documents/workspace/Titan/lib" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../../../bin/libs/Titan/lib" recursive="false" />
       </library>
     </orderEntry>
     <orderEntry type="library" name="com.github.romix.akka:akka-kryo-serialization_2.10:0.3.0" level="project" />

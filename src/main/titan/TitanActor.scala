@@ -34,6 +34,7 @@ class TitanActor extends Actor{
 	//TODO: Communication protocol
 
 	//TODO: check for repeated keys
+  //TODO: WHat happens with multiple partitions? How am I sending messages? -> estou a dar self como referência - pode ser, mas isto tem de ser 'distribuido', com base na chave de cada partição
 	def addCCRDT(ccrdt: ComputationalCRDT){
 		val skel: CCRDTSkeleton = ccrdt.skeleton
 		this.namedPartitions.put(skel.reference, skel);
