@@ -197,6 +197,9 @@ object Tests {
     //a partition needs knowledge about how many partitions it should get data from.
 
     iteration(titan, links)
+    println("Breathe YET again...")
+    Thread.sleep(10000)
+    println("GULP!")
     readStuffWithCheckOnto(titan, "reader")
     println("file successfully read to system", System.nanoTime());
     println("Time after read: "+System.nanoTime())

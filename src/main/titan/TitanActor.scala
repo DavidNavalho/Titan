@@ -141,6 +141,10 @@ class TitanActor extends Actor{
 		this.partitions.get(partitionKey).get ! new ManualCRDTSyncTitanMessage(ccrdt, partitionKey, partitionPlace, partitioningSize)
 	}
 
+  def createTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT, key: Long){
+    this.partitions.get(key).get ! new TriggerTitanMessage(trigger, targetHollowReplica)
+  }
+
 	//TODO: problem: can create a trigger before the partitions have all been instantiated -> that's a problem! (not now)
 	//TODO: this is actually the method after having passed the Trigger to the main (target) CCRDT
 	def addTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT){
@@ -150,11 +154,16 @@ class TitanActor extends Actor{
 		println("#>TRIGGER "+this.namedPartitions.contains(trigger.source))
 		val sourceSkeleton: CCRDTSkeleton = this.namedPartitions.get(source).get;
 		for(i <- 1 to sourceSkeleton.partitioningSize){
-			this.partitions.get(sourceSkeleton.getPartitionKey(i)).get ! new TriggerTitanMessage(trigger, targetHollowReplica)
+      val key: Long = sourceSkeleton.getPartitionKey(i)
+      val node: ActorSelection = findNode(key)
+      node ! new RemoteCreateTrigger(trigger, targetHollowReplica, key)
+//			this.partitions.get(sourceSkeleton.getPartitionKey(i)).get ! new TriggerTitanMessage(trigger, targetHollowReplica)
 		}
 	}
 
 	def receive = {
+    case RemoteCreateTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT, key: Long) =>
+      this.createTrigger(trigger, targetHollowReplica, key)
     case RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long) =>
       this.createPartition(ccrdt, partition, size, partitionKey)
 		case TriggerTitanMessage(trigger:Trigger, ccrdt: ComputationalCRDT) =>
