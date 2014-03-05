@@ -1,7 +1,7 @@
 package examples.tests
 
 import main.titan.data.control.{SysMap}
-import akka.actor.{ActorSelection, Props, ActorRef, ActorSystem}
+import akka.actor._
 import akka.pattern.ask
 import main.titan.{TitanNode, TitanActor}
 import main.titan.data.ccrdt.{CCRDTSkeleton, ComputationalCRDT}
@@ -32,6 +32,12 @@ import main.titan.data.messaging.catadupa.{MiniTitan, CatadupaReply, CatadupaKey
 import main.java.TitanHandler
 import main.java.TitanHandler.TitanReplyHandler
 import com.typesafe.config.ConfigFactory
+import scala.collection.mutable.HashMap
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessage
+import main.titan.data.messaging.Messaging.EpochSync
+import main.titan.data.messaging.Messaging.CRDTCreationTitanMessage
+import main.titan.data.messaging.Messaging.TargetedDataTitanMessageWithReply
+import main.titan.data.messaging.Messaging.TriggerTitanMessage
 
 /**
  * Created with IntelliJ IDEA.
@@ -79,14 +85,29 @@ object Tests {
 		println("done reading links")
 	}
 
-	def readStuffWithCheckOnto(titan: ActorSelection, target: String){
+  def findNode(partitionKey: Long, mt: ActorRef): ActorSelection = {
+    val key: CatadupaKey = new CatadupaKey(partitionKey)
+    implicit val timeout = Timeout(30 seconds)
+    val future = mt ? key
+    val titan: ActorSelection = Await.result(future, 1 minute).asInstanceOf[ActorSelection]
+    return titan
+  }
+
+	def readStuffWithCheckOnto(titan: ActorSelection, target: String, reader: ComputationalCRDT, mt: ActorRef){
+    val pointers: HashMap[Long, ActorSelection] = new HashMap[Long, ActorSelection]();
+    for(i <- 1 to reader.partitioningSize){
+      val key: Long = reader.skeleton.getPartitionKey(i)
+      pointers.put(key, findNode(key, mt))
+    }
 		println("Time: "+System.nanoTime())
 		for(line <- Source.fromFile("pagerank_data.txt").getLines()) {
 			val words: Array[String] = line.split(' ');
 			if(words.length!=2)
 				println("Read something weird...")
 //			implicit val timeout = Timeout(1 minutes)
-			/*val future = */titan ! new TargetedDataTitanMessageWithReply(target, new TitanData(words(0),words(1)));
+			/*val future = */
+      val data: TitanData = new TitanData(words(0),words(1))
+      pointers.get(reader.skeleton.hashingFunction(data.key)).get ! new TargetedDataTitanMessageWithReply(target, data);
 //			val result: String = Await.result(future.mapTo[String], 1 minute)
 //			println(result)
 			/*words.foreach{ w =>
@@ -164,7 +185,7 @@ object Tests {
 
 
 
-	def testPhasedPageRank(titan: ActorSelection){
+	def testPhasedPageRank(titan: ActorSelection, mt: ActorRef){
 //		import com.typesafe.config.ConfigFactory
 //		System.setProperty("akka.remote.netty.tcp.port", 2551+"")
 		/*val actorSystem = ActorSystem("Titan")//, ConfigFactory.load("TitanNode"))
@@ -200,7 +221,7 @@ object Tests {
     println("Breathe YET again...")
     Thread.sleep(10000)
     println("GULP!")
-    readStuffWithCheckOnto(titan, "reader")
+    readStuffWithCheckOnto(titan, "reader", reader, mt)
     println("file successfully read to system", System.nanoTime());
     println("Time after read: "+System.nanoTime())
     titan ! new EpochSync("reader", 0)
@@ -249,7 +270,7 @@ object Tests {
 		val future = mt ? (key)
 		val titan: ActorSelection = Await.result(future, 1 minute).asInstanceOf[ActorSelection]
 //		titan ! new CRDTCreationTitanMessage(reader)
-		testPhasedPageRank(titan)
+		testPhasedPageRank(titan, mt)
 		//send this reader, through catadupa
 //		titan ! new CRDTCreationTitanMessage(reader);
 //		testPhasedPageRank(titan)

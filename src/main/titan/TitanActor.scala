@@ -118,11 +118,19 @@ class TitanActor extends Actor{
 				list = systemActors.get;*/
   }
 
+  def remoteAddData(data: TitanData, key: Long){
+    val actor: ActorRef = this.partitions.get(key).get;
+    actor ! new DataTitanMessage(data);
+  }
+
 	//manual method of adding data...definitely not optimal!
 	def addData(target: String, data: TitanData){
 		//find the correct CCRDT
 		val skel: CCRDTSkeleton = this.namedPartitions.get(target).get;
 		val key: Long = skel.hashingFunction(data.key);
+//    val node: ActorSelection = findNode(key)
+//    node ! new RemoteAddData(data: TitanData, key: Long)
+
 		val actor: ActorRef = this.partitions.get(key).get;
 		actor ! new DataTitanMessage(data);
 	}
@@ -162,6 +170,8 @@ class TitanActor extends Actor{
 	}
 
 	def receive = {
+    case RemoteAddData(data: TitanData, key: Long) =>
+      this.remoteAddData(data, key)
     case RemoteCreateTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT, key: Long) =>
       this.createTrigger(trigger, targetHollowReplica, key)
     case RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long) =>

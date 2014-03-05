@@ -30,6 +30,7 @@ object Messaging {
 	case class CRDTCreationTitanMessage(ccrdt: ComputationalCRDT) extends TitanMessage
   case class RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long) extends TitanMessage
   case class RemoteCreateTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT, key: Long) extends TitanMessage
+  case class RemoteAddData(data: TitanData, key: Long) extends TitanMessage
 	case class EpochSync(source: String, epoch: Int) extends TitanMessage
 	case class IterationSync(source: String, epoch: Int, iteration: Int) extends TitanMessage
 
