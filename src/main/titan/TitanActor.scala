@@ -1,7 +1,7 @@
 package main.titan
 
 import main.titan.data.ccrdt.{CCRDTSkeleton, ComputationalCRDT}
-import akka.actor._
+import akka.actor.{ActorSelection, Props, ActorRef, ActorSystem, Actor}
 import scala.collection.mutable.{ListBuffer, HashMap}
 import main.titan.data.messaging.Messaging._
 import main.titan.data.messaging.TitanData
@@ -58,7 +58,7 @@ class TitanActor extends Actor{
 
   //val key: CatadupaKey = new CatadupaKey(0)
 
-  val mtCF = ConfigFactory.load("MiniTitan")
+  val mtCF = ConfigFactory.load("TitanActor")
   val actorSystem: ActorSystem = ActorSystem("TitanNode",mtCF)
   val mt: ActorRef = actorSystem.actorOf(Props[MiniTitan](new MiniTitan))
   implicit val timeout = Timeout(30 seconds)
@@ -66,37 +66,57 @@ class TitanActor extends Actor{
 
 	//TODO: Communication protocol
 
-  def findNode(nodeKey: Long){
-    println("Finding Titan Node")
-    val key: CatadupaKey = new CatadupaKey(nodeKey)
+  def findNode(partitionKey: Long): ActorSelection = {
+    val key: CatadupaKey = new CatadupaKey(partitionKey)
     val future = mt ? key
     val titan: ActorSelection = Await.result(future, 1 minute).asInstanceOf[ActorSelection]
-    println("Reply received")
+    return titan
   }
 
+  //TODO: I'm not waiting for this result currently - mistake!
+  def createPartition(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long){
+    val skelleton: CCRDTSkeleton = ccrdt.skeleton
+    if(!this.namedPartitions.contains(skelleton.reference))
+      this.namedPartitions.put(skelleton.reference, skelleton)
+    else
+      println("Skeletton already existed, ignoring")
+    val partitionActor: ActorRef = titanActorSystem.actorOf(Props[TitanPartition](new TitanPartition(ccrdt.hollowReplica, self, partition, size)))
+    if(this.partitions.contains(partitionKey)){
+      println("Titan: partitionKey already existed!!!")
+      return
+    }
+    this.partitions.put(partitionKey, partitionActor);
+    println("Partition ["+partition+"] "+skelleton.reference+" created.")
+  }
 	//TODO: check for repeated keys
   //TODO: WHat happens with multiple partitions? How am I sending messages? -> estou a dar self como referência - pode ser, mas isto tem de ser 'distribuido', com base na chave de cada partição
 	def addCCRDT(ccrdt: ComputationalCRDT){
 		val skel: CCRDTSkeleton = ccrdt.skeleton
 		this.namedPartitions.put(skel.reference, skel);
 		for(i <- 1 to skel.partitioningSize){
-      findNode(skel.getPartitionKey(i))
-			val partitionKey: Long = skel.getPartitionKey(i);
+      println("Requesting to create partition ["+i+"] from: "+skel.reference)
+      val key: Long = skel.getPartitionKey(i)
+      val node: ActorSelection = findNode(key)
+      println("node found, sending message")
+      node ! new RemoteCreateCRDT(ccrdt, i, skel.partitioningSize, key)
+//      node ! new CRDTCreationTitanMessage(ccrdt);
+
+			/*val partitionKey: Long = skel.getPartitionKey(i);
 			val partitionActor: ActorRef = titanActorSystem.actorOf(Props[TitanPartition](new TitanPartition(ccrdt.hollowReplica, self, i, skel.partitioningSize)))
 			if(this.partitions.contains(partitionKey)){
 				println("Titan: partitionKey already exists!!!")
 				return
 			}
-			/*val systemActors = this.partitions.get(partitionKey);
+			this.partitions.put(partitionKey, partitionActor);*/
+		}
+    /*val systemActors = this.partitions.get(partitionKey);
 			var list: ListBuffer[ActorRef] = null;
 			if(!systemActors.isDefined){
 				list = new ListBuffer[ActorRef]();
 				this.partitions.put(partitionKey, list)
 			}else
 				list = systemActors.get;*/
-			this.partitions.put(partitionKey, partitionActor);
-		}
-	}
+  }
 
 	//manual method of adding data...definitely not optimal!
 	def addData(target: String, data: TitanData){
@@ -135,6 +155,8 @@ class TitanActor extends Actor{
 	}
 
 	def receive = {
+    case RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long) =>
+      this.createPartition(ccrdt, partition, size, partitionKey)
 		case TriggerTitanMessage(trigger:Trigger, ccrdt: ComputationalCRDT) =>
 			this.addTrigger(trigger, ccrdt)
 		case TargetedDataTitanMessage(target: String, titanData: TitanData) =>

@@ -24,7 +24,9 @@ class CCRDTSkeleton(name: String, size: Int) extends Serializable{
 			digest.reset()
 			val partition: Int = math.abs(key.hashCode%partitioningSize) + 1;//or maybe this is what I really need to define??
 			digest.update((reference+partition).getBytes());
-			return new BigInteger(1, digest.digest()).longValue() >>> 1;
+			val bi: Long = new BigInteger(1, digest.digest()).longValue() >>> 1;
+      digest = null
+      return bi
 		}
 	}
 
@@ -33,7 +35,9 @@ class CCRDTSkeleton(name: String, size: Int) extends Serializable{
 		digest.synchronized{
 			digest.reset()
 			digest.update((reference+position).getBytes())
-			return new BigInteger(1, digest.digest()).longValue() >>> 1;
+			val bi: Long = new BigInteger(1, digest.digest()).longValue() >>> 1;
+      digest = null
+      return bi
 		}
 	}
 }

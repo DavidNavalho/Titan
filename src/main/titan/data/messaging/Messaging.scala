@@ -1,6 +1,6 @@
 package main.titan.data.messaging
 
-import main.titan.data.ccrdt.ComputationalCRDT
+import main.titan.data.ccrdt.{CCRDTSkeleton, ComputationalCRDT}
 import main.titan.computation.Trigger
 import scala.collection.mutable.ListBuffer
 import sys.dht.api.DHT.{Message, Key}
@@ -28,6 +28,7 @@ object Messaging {
 //	case class EOE(ccrdtName: String)
 
 	case class CRDTCreationTitanMessage(ccrdt: ComputationalCRDT) extends TitanMessage
+  case class RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long) extends TitanMessage
 	case class EpochSync(source: String, epoch: Int) extends TitanMessage
 	case class IterationSync(source: String, epoch: Int, iteration: Int) extends TitanMessage
 

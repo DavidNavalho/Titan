@@ -132,6 +132,9 @@ object Tests {
 		titan ! CRDTCreationTitanMessage(ranks)
 		val secondTrigger: LinksRanksTrigger = new LinksRanksTrigger("links", "all", "ranks")
 //		this.stub.send(new CatadupaKey("links"), new CatadupaMessage(new TriggerTitanMessage(secondTrigger, ranks.hollowReplica)))
+    println("Breathe again...")
+    Thread.sleep(10000)
+    println("GULP!")
 		titan ! TriggerTitanMessage(secondTrigger, ranks.hollowReplica)
 	}
 
@@ -181,19 +184,23 @@ object Tests {
 		//setup the rest of the system nodes
 		val links: Links = new Links("links",4);
 //		this.stub.send(new CatadupaKey("links"), new CatadupaMessage(new CRDTCreationTitanMessage(links)))
-		titan ! new CRDTCreationTitanMessage(links)
-		//setup the triggers
-		val firstTrigger: ReaderLinksTrigger = new ReaderLinksTrigger("reader", "all", "links");
-//		this.stub.send(new CatadupaKey("reader"), new CatadupaMessage(new TriggerTitanMessage(firstTrigger, links.hollowReplica)))
-		titan ! TriggerTitanMessage(firstTrigger, links.hollowReplica)
-		//send signal to start computation?
-		//a partition needs knowledge about how many partitions it should get data from.
+    titan ! new CRDTCreationTitanMessage(links)
+    println("breathe...")
+    Thread.sleep(10000)
+    println("GULP")
 
-		iteration(titan, links)
-		readStuffWithCheckOnto(titan, "reader")
-		println("file successfully read to system", System.nanoTime());
-		println("Time after read: "+System.nanoTime())
-		titan ! new EpochSync("reader", 0)
+    //setup the triggers
+    val firstTrigger: ReaderLinksTrigger = new ReaderLinksTrigger("reader", "all", "links");
+//		this.stub.send(new CatadupaKey("reader"), new CatadupaMessage(new TriggerTitanMessage(firstTrigger, links.hollowReplica)))
+    titan ! TriggerTitanMessage(firstTrigger, links.hollowReplica)
+    //send signal to start computation?
+    //a partition needs knowledge about how many partitions it should get data from.
+
+    iteration(titan, links)
+    readStuffWithCheckOnto(titan, "reader")
+    println("file successfully read to system", System.nanoTime());
+    println("Time after read: "+System.nanoTime())
+    titan ! new EpochSync("reader", 0)
 
 	}
 

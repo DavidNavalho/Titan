@@ -40,7 +40,7 @@ class MiniTitan extends Actor{
 
 		@Override
 		def onReceive(msg: CatadupaReply){
-			println("Received CatadupaReply with TitanNode Ref")
+			println("Received CatadupaReply with TitanNode Ref: "+msg.str)
 //			println(msg.str)
 //			println(msg.getActorRef.toString())
 			waiters.put(msg.str)
