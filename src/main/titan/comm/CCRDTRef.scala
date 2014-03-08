@@ -1,9 +1,11 @@
 package main.titan.comm
 
-import akka.actor.ActorRef
+import akka.actor.{ActorSelection}
 import sys.dht.api.DHT
 import sys.Sys.Sys
 import main.titan.data.messaging.Messaging.TitanMessage
+import main.titan.data.ccrdt.CCRDTSkeleton
+import scala.collection.mutable.HashMap
 
 
 /**
@@ -13,7 +15,7 @@ import main.titan.data.messaging.Messaging.TitanMessage
  * Time: 13:57
  * To change this template use File | Settings | File Templates.
  */
-class CCRDTRef(actor: ActorRef) {
+class CCRDTRef(val refs: HashMap[Long, ActorSelection]) extends Serializable{
 	var rpc: Boolean = false;
 	var stub: DHT = null
 
@@ -23,12 +25,13 @@ class CCRDTRef(actor: ActorRef) {
 		this.stub = Sys.getDHT_ClientStub
 	}
 
-	def message(msg: TitanMessage){
+	def message(msg: TitanMessage, partitionKey: Long){
 		if(rpc){
 //			this.stub.send(msg, msg)
 		}
-		else
-			this.actor ! msg
+		else{
+			this.refs.get(partitionKey).get ! msg
+		}
 	}
 
 }

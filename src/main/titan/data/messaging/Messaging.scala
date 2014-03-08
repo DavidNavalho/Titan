@@ -5,6 +5,7 @@ import main.titan.computation.Trigger
 import scala.collection.mutable.ListBuffer
 import sys.dht.api.DHT.{Message, Key}
 import akka.actor.ActorRef
+import main.titan.comm.CCRDTRef
 
 /**
  * Created with IntelliJ IDEA.
@@ -28,7 +29,7 @@ object Messaging {
 //	case class EOE(ccrdtName: String)
 
 	case class CRDTCreationTitanMessage(ccrdt: ComputationalCRDT) extends TitanMessage
-  case class RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long) extends TitanMessage
+  case class RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long, refs: CCRDTRef) extends TitanMessage
   case class RemoteCreateTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT, key: Long) extends TitanMessage
   case class RemoteAddData(data: TitanData, key: Long) extends TitanMessage
 	case class EpochSync(source: String, epoch: Int) extends TitanMessage

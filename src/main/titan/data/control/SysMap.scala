@@ -22,7 +22,7 @@ import main.titan.comm.CCRDTRef
  * To change this template use File | Settings | File Templates.
  */
 //TODO: interface for increasing parallelism (Actor model processes 1 message at a time) -> Executors, thread pool
-class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize: Int) extends Actor{
+class SysMap(ccrdt: ComputationalCRDT, titanRefs: CCRDTRef, father: Int, maxSize: Int) extends Actor{
 
 	import context.dispatcher
 	import scala.concurrent.duration._
@@ -32,7 +32,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize:
 	var partitions: HashMap[Long, ComputationalCRDT] = new HashMap[Long, ComputationalCRDT]();
 	val reference: String = ccrdt.reference;
 	val skeleton: CCRDTSkeleton = ccrdt.skeleton;
-	val titan: CCRDTRef = new CCRDTRef(titanRef);
+	val titan: CCRDTRef = titanRefs
 	val myFather: Int = father;
 	val myFathersMaxSize: Int = maxSize;
 
@@ -65,7 +65,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize:
 			val key: Long = this.skeleton.getPartitionKey(i)
 			val ccrdt: ComputationalCRDT = this.partitions.get(key).get
 			this.partitions.put(key,ccrdt.hollowReplica);
-			titan.message(new CRDTSyncTitanMessage(ccrdt, key))
+			titan.message(new CRDTSyncTitanMessage(ccrdt, key), key)
 //			println("Sent: "+ccrdt.size()+"| Remained: "+this.partitions.get(key).get.size())
 			//send the ccrdt to titan, so it can be synced - let's make it local for now
 		}
@@ -78,7 +78,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRef: ActorRef, father: Int, maxSize:
 			val ccrdt: ComputationalCRDT = this.partitions.get(key).get
 //			println(ccrdt.size())
 			this.partitions.put(key,ccrdt.hollowReplica);
-			titan.message(new ManualCRDTSyncTitanMessage(ccrdt, key, this.myFather, this.myFathersMaxSize))
+			titan.message(new ManualCRDTSyncTitanMessage(ccrdt, key, this.myFather, this.myFathersMaxSize), key)
 //						println("Sent: "+ccrdt.size()+"| Remained: "+this.partitions.get(key).get.size())
 			//send the ccrdt to titan, so it can be synced - let's make it local for now
 		}

@@ -154,7 +154,7 @@ object Tests {
 		val secondTrigger: LinksRanksTrigger = new LinksRanksTrigger("links", "all", "ranks")
 //		this.stub.send(new CatadupaKey("links"), new CatadupaMessage(new TriggerTitanMessage(secondTrigger, ranks.hollowReplica)))
     println("Breathe again...")
-    Thread.sleep(10000)
+    Thread.sleep(5000)
     println("GULP!")
 		titan ! TriggerTitanMessage(secondTrigger, ranks.hollowReplica)
 	}
@@ -207,7 +207,7 @@ object Tests {
 //		this.stub.send(new CatadupaKey("links"), new CatadupaMessage(new CRDTCreationTitanMessage(links)))
     titan ! new CRDTCreationTitanMessage(links)
     println("breathe...")
-    Thread.sleep(10000)
+    Thread.sleep(5000)
     println("GULP")
 
     //setup the triggers
@@ -219,7 +219,7 @@ object Tests {
 
     iteration(titan, links)
     println("Breathe YET again...")
-    Thread.sleep(10000)
+    Thread.sleep(5000)
     println("GULP!")
     readStuffWithCheckOnto(titan, "reader", reader, mt)
     println("file successfully read to system", System.nanoTime());

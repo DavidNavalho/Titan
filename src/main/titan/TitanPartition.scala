@@ -15,6 +15,7 @@ import main.titan.data.messaging.Messaging.TriggerTitanMessage
 import main.hacks.data.triggers.CheckTrigger
 import main.hacks.data.ccrdts.{Links, ScratchpadRanks}
 import com.typesafe.config.ConfigFactory
+import main.titan.comm.CCRDTRef
 
 
 /**
@@ -28,7 +29,7 @@ import com.typesafe.config.ConfigFactory
 //Since this is created by the trigger, it makes sense it runs inside
 //TODO: receive network messages from nodes in the system (instead of going through Titan?)
 //TODO: I may be overusing the actor system...?
-class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlace: Int, partitionsSize: Int) extends Actor{
+class TitanPartition(ccrdt: ComputationalCRDT, val refs: CCRDTRef, partitionPlace: Int, partitionsSize: Int) extends Actor{
 
 	val partition: ComputationalCRDT = ccrdt;
 	//TODO: shouldn't really be random...
@@ -36,7 +37,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 	val partitionActorSystem: ActorSystem = ActorSystem("P-"+this.partition.skeleton.reference+Random.nextInt(),cf);
 	val localReplicas: ListBuffer[ActorRef] =new ListBuffer[ActorRef]();
 	println("New CCRDT Partition created: "+ccrdt.reference)
-	val titan: ActorRef = titanRef;
+//	val titan: ActorRef = titanRef;
 	val place: Int = partitionPlace;
 	val placeMax: Int = partitionsSize;
 
@@ -86,7 +87,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 			this.lastIteration = iteration
 			this.computeIteration
 		}
-		titan ! new CCRDTDataRequest(target, this.ccrdt.reference, this.lastIteration)
+		refs.refs.iterator.next()._2 ! new CCRDTDataRequest(target, this.ccrdt.reference, this.lastIteration) //TODO: this is all kinds of wrong...
 	}
 
 	//TODO: make it abstract, based on trigger, etc
@@ -94,7 +95,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 	def messagePartitions(target: String){
 		this.lastIteration+=1
 		println("Starting iteration: "+this.lastIteration)
-		titan ! new CCRDTDataRequest(target, this.ccrdt.reference, this.lastIteration)
+		refs.refs.iterator.next()._2 ! new CCRDTDataRequest(target, this.ccrdt.reference, this.lastIteration)
 	}
 
 	//this one runs on all partitions
@@ -140,9 +141,9 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 			if(result){
 				println("Iteration verification suggesting to stop on partition: "+this.partitionPlace+", iteration: "+this.lastIteration)
 				//I should now sync this to the first, which is the one that actually decides what to do
-				titan ! new IterationCheckSyncTitanMessage(this.ccrdt.reference, this.it_Counter, true)
+				refs.refs.iterator.next()._2 ! new IterationCheckSyncTitanMessage(this.ccrdt.reference, this.it_Counter, true)
 			}else
-				titan ! new IterationCheckSyncTitanMessage(this.ccrdt.reference, this.it_Counter, false)
+				refs.refs.iterator.next()._2 ! new IterationCheckSyncTitanMessage(this.ccrdt.reference, this.it_Counter, false)
 			return
 		}
 		//TODO: 3. the results from the compute function should be gathered onto a local true/false gatherer
@@ -185,7 +186,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 				this.localTrigger = trigger
 			}
 			else{
-				val newActor: ActorRef = partitionActorSystem.actorOf(Props[SysMap](new SysMap(ccrdt.hollowReplica, this.titan, this.place, this.placeMax)))
+				val newActor: ActorRef = partitionActorSystem.actorOf(Props[SysMap](new SysMap(ccrdt.hollowReplica, this.refs, this.place, this.placeMax)))
 				this.localReplicas+=newActor;
 				newActor ! trigger;
 			}
@@ -251,7 +252,7 @@ class TitanPartition(ccrdt: ComputationalCRDT, titanRef: ActorRef, partitionPlac
 		}
 		case CCRDTDataRequest(target: String, source: String, iteration: Int) => {
 //			println("> Partition "+this.ccrdt.reference+"("+this.partitionPlace+") received request for data from <"+source+">")
-			titan ! new CCRDTDataRequestReply(this.ccrdt, source, iteration: Int, this.ccrdt.partitioningSize)
+			refs.refs.iterator.next()._2 ! new CCRDTDataRequestReply(this.ccrdt, source, iteration: Int, this.ccrdt.partitioningSize)
 		}
 		case CCRDTDataRequestReply(data: ComputationalCRDT, target: String, iteration: Int, expectedReplies: Int) => {
 			if(this.it_Counter<iteration){

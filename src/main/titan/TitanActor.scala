@@ -32,6 +32,8 @@ import main.titan.data.messaging.Messaging.IterationCheckSyncTitanMessage
 import akka.cluster.ClusterEvent.UnreachableMember
 import main.titan.data.messaging.Messaging.TriggerTitanMessage
 import scala.concurrent.Await
+import scala.collection.mutable
+import main.titan.comm.CCRDTRef
 
 //required for '?'
 
@@ -73,14 +75,24 @@ class TitanActor extends Actor{
     return titan
   }
 
+	def createPartitionsReferences(skelleton: CCRDTSkeleton): CCRDTRef = {
+		val refs: HashMap[Long, ActorSelection] = new HashMap[Long, ActorSelection]()
+		for(i <- 1 to skelleton.partitioningSize){
+			val key: Long = skelleton.getPartitionKey(i)
+			val ref: ActorSelection = findNode(key)
+			refs.put(key, ref)
+		}
+		return new CCRDTRef(refs)
+	}
+
   //TODO: I'm not waiting for this result currently - mistake!
-  def createPartition(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long){
+  def createPartition(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long, refs: CCRDTRef){
     val skelleton: CCRDTSkeleton = ccrdt.skeleton
     if(!this.namedPartitions.contains(skelleton.reference))
       this.namedPartitions.put(skelleton.reference, skelleton)
     else
       println("Skeletton already existed, ignoring")
-    val partitionActor: ActorRef = titanActorSystem.actorOf(Props[TitanPartition](new TitanPartition(ccrdt.hollowReplica, self, partition, size)))
+    val partitionActor: ActorRef = titanActorSystem.actorOf(Props[TitanPartition](new TitanPartition(ccrdt.hollowReplica, refs, partition, size)))
     if(this.partitions.contains(partitionKey)){
       println("Titan: partitionKey already existed!!!")
       return
@@ -92,13 +104,13 @@ class TitanActor extends Actor{
   //TODO: WHat happens with multiple partitions? How am I sending messages? -> estou a dar self como referência - pode ser, mas isto tem de ser 'distribuido', com base na chave de cada partição
 	def addCCRDT(ccrdt: ComputationalCRDT){
 		val skel: CCRDTSkeleton = ccrdt.skeleton
-		this.namedPartitions.put(skel.reference, skel);
+//		this.namedPartitions.put(skel.reference, skel);//TODO: maybe this should be somehow mixed with the ccrdtactorref...
+		val refs: CCRDTRef = this.createPartitionsReferences(skel)
 		for(i <- 1 to skel.partitioningSize){
-      println("Requesting to create partition ["+i+"] from: "+skel.reference)
-      val key: Long = skel.getPartitionKey(i)
-      val node: ActorSelection = findNode(key)
-      println("node found, sending message")
-      node ! new RemoteCreateCRDT(ccrdt, i, skel.partitioningSize, key)
+			val key: Long = skel.getPartitionKey(i)
+			val node: ActorSelection = refs.refs.get(key).get
+      println("Requesting to create partition from: "+skel.reference+"["+i+"|"+key+"]" )
+      node ! new RemoteCreateCRDT(ccrdt, i, skel.partitioningSize, key, refs)
 //      node ! new CRDTCreationTitanMessage(ccrdt);
 
 			/*val partitionKey: Long = skel.getPartitionKey(i);
@@ -174,8 +186,8 @@ class TitanActor extends Actor{
       this.remoteAddData(data, key)
     case RemoteCreateTrigger(trigger: Trigger, targetHollowReplica: ComputationalCRDT, key: Long) =>
       this.createTrigger(trigger, targetHollowReplica, key)
-    case RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long) =>
-      this.createPartition(ccrdt, partition, size, partitionKey)
+    case RemoteCreateCRDT(ccrdt: ComputationalCRDT, partition: Int, size: Int, partitionKey: Long, refs: CCRDTRef) =>
+      this.createPartition(ccrdt, partition, size, partitionKey, refs: CCRDTRef)
 		case TriggerTitanMessage(trigger:Trigger, ccrdt: ComputationalCRDT) =>
 			this.addTrigger(trigger, ccrdt)
 		case TargetedDataTitanMessage(target: String, titanData: TitanData) =>
@@ -194,7 +206,15 @@ class TitanActor extends Actor{
 			for(i <- 1 to skel.partitioningSize){
 				val partition: Long = skel.getPartitionKey(i)
 //				partitions.get(partition).get ! "manualsync"
-				partitions.get(partition).get ! new EpochSync(str, epoch)
+				if(this.partitions.contains(partition))
+					partitions.get(partition).get ! new EpochSync(str, epoch)
+				else{
+					println("EpochSync not present in current Node, finding it...")
+					val node: ActorSelection = findNode(partition)  //TODO: this is incredibly slow...
+					println("Sending EpochSync to correct Titan Node")
+					node ! new EpochSync(str, epoch)
+				}
+
 			}
 		}
 		case CCRDTDataRequest(target:String, source: String, iteration: Int) => {
