@@ -1,12 +1,9 @@
-package examples.tests
+package examples.tests.deprecated
 
 import main.titan.data.ccrdt.ComputationalCRDT
-import main.hacks.data.ccrdts.{Ranks, ScratchpadRanks, Links, ORSetCCRDT}
+import main.hacks.data.ccrdts.{ScratchpadRanks, Links, ORSetCCRDT}
 import scala.io.Source
 import main.titan.data.messaging.TitanData
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-import sys.dht.catadupa.crdts.ORSet
 import examples.tests.RanksDelta
 
 

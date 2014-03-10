@@ -1,4 +1,4 @@
-package examples.tests
+package examples.tests.deprecated
 
 import main.titan.data.control.{SysMap}
 import akka.actor._

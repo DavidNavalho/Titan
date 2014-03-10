@@ -71,7 +71,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRefs: CCRDTRef, father: Int, maxSize
 		}
 	}
 
-	//TODO: lots of messages going on here...too much?!?
+	//TODO: lots of messages going on here...too much?!? -> problem here: basically, i have a sysmap connected to the local TitanNode - check how i create sysmaps, and provide the map on construction instead
 	def manualSync(epochData: EOEData){
 		for(i <- 1 to this.skeleton.partitioningSize){
 			val key: Long = this.skeleton.getPartitionKey(i)
@@ -117,7 +117,7 @@ class SysMap(ccrdt: ComputationalCRDT, titanRefs: CCRDTRef, father: Int, maxSize
 		}
 		case "sync" => {
 //			localReplicas.foreach{actor: ActorRef =>
-			this.sync
+			this.synccon
 			/*val sizeTest: Int = this.partitions.get(this.skeleton.getPartitionKey(1)).get.asInstanceOf[MapCCRDT].orMap.size()
 			if(sizeTest>100){
 				for(i <- 1 to skeleton.partitioningSize){

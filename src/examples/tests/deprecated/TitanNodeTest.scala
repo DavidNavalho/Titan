@@ -1,4 +1,4 @@
-package examples.tests
+package examples.tests.deprecated
 
 import sys.Sys
 import main.titan.TitanNode
